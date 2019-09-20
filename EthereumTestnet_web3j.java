@@ -1,6 +1,7 @@
 package com.bezalel.trading_api;
 
 import java.io.File;
+import java.math.BigDecimal;
 import java.math.BigInteger;
 
 import org.web3j.crypto.Credentials;
@@ -9,8 +10,11 @@ import org.web3j.protocol.Web3j;
 import org.web3j.protocol.core.DefaultBlockParameterName;
 import org.web3j.protocol.core.methods.response.EthBlockNumber;
 import org.web3j.protocol.core.methods.response.EthGetBalance;
+import org.web3j.protocol.core.methods.response.TransactionReceipt;
 import org.web3j.protocol.core.methods.response.Web3ClientVersion;
 import org.web3j.protocol.http.HttpService;
+import org.web3j.tx.Transfer;
+import org.web3j.utils.Convert;
 
 public class EthereumTestnet_web3j {
 	
@@ -90,5 +94,36 @@ public class EthereumTestnet_web3j {
         System.out.println(address);         
         
         return address;     
+    }
+    
+    public String SendETH(
+            String wallet, 
+            String password, 
+            String addressto, 
+            double amount /* ETH */) throws Exception { 
+        
+        BigInteger GAS_PRICE = BigInteger.valueOf(20_000_000_000L);
+        Credentials credentials = null;
+        Web3j web3 = Web3j.build(new HttpService(settings.url));
+       
+        try {
+            credentials = WalletUtils.loadCredentials(password, wallet);
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
+            return "404"; // not found     
+        } 
+
+        long startTime = System.currentTimeMillis();
+        TransactionReceipt transactionReceipt = Transfer.sendFunds(web3, credentials, 
+            addressto, BigDecimal.valueOf(amount), Convert.Unit.ETHER).send(); 
+        long stopTime = System.currentTimeMillis();
+        long elapsedTime = stopTime - startTime;
+ 
+        System.out.println(transactionReceipt.toString());
+        BigInteger txFees = transactionReceipt.getGasUsed().multiply(GAS_PRICE);
+        System.out.println("Fee: " + txFees); 
+        System.out.println("Time (millisec): " + elapsedTime + ", Time (sec): " + ((double) elapsedTime)/1000 + ", Time (min): " + ((double) elapsedTime)/1000/60);
+    
+        return transactionReceipt.toString();
     }
 }
