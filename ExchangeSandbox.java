@@ -1,6 +1,8 @@
 package com.bezalel.trading_api;
 
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -10,6 +12,7 @@ import java.util.Map;
 import org.apache.http.NameValuePair;
 import org.apache.http.message.BasicNameValuePair;
 import org.json.JSONObject;
+import org.web3j.abi.datatypes.Int;
 
 public class ExchangeSandbox {
     
@@ -23,8 +26,9 @@ public class ExchangeSandbox {
         String uri = settings.uri;
         double asset1_price = 0;
         double asset2_price = 0;
-        double assets_rate = 0;	    
-   
+        double assets_rate = 0;	
+        double assets_rate_new = 0;    
+
         String asset1ID = getAssetId(asset1);
         String asset2ID = getAssetId(asset2);
         String arg = asset1ID + "," + asset2ID;
@@ -58,13 +62,13 @@ public class ExchangeSandbox {
             objnext = objnext.getJSONObject("quote");
             objnext = objnext.getJSONObject("USD");
             asset1_price = objnext.getDouble("price");  
-            System.out.println(asset1 + " price: " + asset1_price);
+            System.out.println("GetPairQuote> " + asset1 + " price: " + asset1_price + " USD");
             
             objnext = obj_2;
             objnext = objnext.getJSONObject("quote");
             objnext = objnext.getJSONObject("USD");
             asset2_price = objnext.getDouble("price");  
-            System.out.println(asset2 +" price: " + asset2_price);
+            System.out.println("GetPairQuote> " + asset2 +" price: " + asset2_price + " USD");
             
             if (asset1_price == 0) {
                 System.out.println("403"); // forbidden
@@ -72,24 +76,33 @@ public class ExchangeSandbox {
             }
         
             assets_rate = asset2_price/asset1_price;
-            System.out.println("1 " + asset2 + " is: " + assets_rate + " " + asset1); 
-            } catch (IOException e) {
-                System.out.println("Error: cannont access content - " + e.toString());
-            } catch (URISyntaxException e) {
-                System.out.println("Error: Invalid URL " + e.toString());
+            assets_rate_new = asset1_price/asset2_price;
+        } catch (IOException e) {
+            System.out.println("GetPairQuote> Error: cannont access content - " + e.toString());
+        } catch (URISyntaxException e) {
+            System.out.println("GetPairQuote> Error: Invalid URL " + e.toString());
         }
         
         String pair = asset1.toUpperCase() + "_" + asset2.toUpperCase();
-        System.out.println("Pair: " + pair + ", Side: " + side.toUpperCase() + 
-                             ", Fee: " + getFeeValue(pair, side.toUpperCase()));	    
-    
+        System.out.println("GetPairQuote> Pair: " + pair + ", Side: " + side.toUpperCase() + 
+                             ", Fee: " + getFeeValue(pair, side.toUpperCase()));
+        double exchange_rate_buy = (1 + getFeeValue(pair, "BUY"))*asset1_price/asset2_price;
+        double exchange_rate_sell = (1 + getFeeValue(pair, "SELL"))*asset1_price/asset2_price;
+  
+        System.out.println("--------------------------------------------------------------------------------");
+        System.out.println("GetPairQuote> 1 " + asset1 + " market rate: " + assets_rate_new + " " + asset2);
+        System.out.println("GetPairQuote> 1 " + asset1 + " exchange rate (BUY): " + exchange_rate_buy + " " + asset2); 
+        System.out.println("GetPairQuote> 1 " + asset1 + " exchange rate (SELL): " + exchange_rate_sell + " " + asset2); 
+        System.out.println("--------------------------------------------------------------------------------");
+        
         if (assets_rate == 0) {	    	
             return -1; // return validation error (zero denominator)  
         }
 
-        // Fee value in percents
-        double quote = (1+getFeeValue(pair, side.toUpperCase()))*asset1_amount/assets_rate;
-        System.out.println("Quote: " + quote);
+        // Fee value in percents       
+        double quote = (1 + getFeeValue(pair, side.toUpperCase()))*asset1_amount*assets_rate_new;
+        System.out.println("GetPairQuote> Quote: " + quote);
+        System.out.println("GetPairQuote> You'll need " + quote + " WAVES for " + asset1_amount + " ETH");
         
         return quote;
     }
@@ -121,163 +134,293 @@ public class ExchangeSandbox {
         }
          
         return settings.pairs.get(value);
-    }
-    
-    public String ExchangePair(
-            String type, 
-            String asset1, 
-            double asset1_amount,
-            String asset1_address, 
-            String asset2,
-            double asset2_amount,
-            String asset2_address) throws Exception {
-        
+    }   
+     
+    public String ExchangePair_ETH2WAVES(
+              String type,               
+              double amount,                           
+              String asset_base_address, 
+              String asset_quoted_address, 
+              boolean fixed_base_amount) throws Exception {
+ 
         String result = null;
-         
-        // Step 0: TODO: If source address or destination address don't exist return validation error.
-         
-        // Scenario 1: Buy X BTC for a set amount (asset2_amount = 0.00233) of Waves. The pair 
-        // is BTC_WAVES_SELL. 
-        // Scenario 2: Buy set amount (asset1_amount = 0.00233) of BTC for X amount of Waves. 
-         // The pair is BTC_WAVES_SELL again. 
-        if (!asset1.toUpperCase().equals("BTC") && !asset1.toUpperCase().equals("WAVES")) {
+        String asset_base = "ETH"; 
+        String asset_quoted  = "WAVES";         
+       
+        if (!type.toUpperCase().equals("BUY") && !type.toUpperCase().equals("SELL")) {
             System.out.println("Side: 403"); 
-            // Return validation error (only BTC and WAVES TX sandbox TX are implemented)
+            // Return validation error ("Buy" or "Sell" are the only allowed values)
             return "-1"; 
         }
-         
-        String asset1_reservesaddress = null;
-        String asset2_reservesaddress = null;
+        
+        String asset_base_reservesaddress = null;
+        String asset_quoted_reservesaddress = null;
+        double quote = 0;
         
         Settings settings = new Settings();
         settings.CollectionCryptoIDs();
         settings.CollectionSymbols();
         System.out.println(settings.cryptoids.get("Waves"));  
-        System.out.println(settings.symbols.get(1274)); 		
-            
-        // Step 1: Get quote
-        double quote = 0;
-        if (asset1_amount == -1 && asset2_amount != 1) { // scenario 1: X BTC for a set amount of Waves
-            quote = getPairQuote(asset1, 1, asset2, type);
-        }
-        else if (asset1_amount != 1 && asset2_amount == -1) { // scenario 2:  set amount (0.000002 or 200 satoshi) of BTC for X Waves
-            quote = getPairQuote(asset1, asset1_amount, asset2, type);
-        }
-        else  {
-            return "The scenario does not exist";
-        }
-        System.out.println("This quote: " + quote); 
+        System.out.println(settings.symbols.get(1274));
         
-        // Step 2: Get reserves addresses for the selected pair (BTC_WAVES).
+        // Get reserves addresses for the selected pair (ETH_WAVES). Common step for all scenarios.
         settings.CollectionKeys();
         JSONObject obj = new JSONObject(settings.reserves_addresses.toString()); 
-        asset1_reservesaddress = obj.get(asset1.toUpperCase()).toString();
-        asset2_reservesaddress = obj.get(asset2.toUpperCase()).toString();		
-        System.out.println(asset1 + " reserves address: " + asset1_reservesaddress); 
-        System.out.println(asset2 + " reserves address: " + asset2_reservesaddress);     	
+        asset_base_reservesaddress = obj.get(asset_base.toUpperCase()).toString();
+        asset_quoted_reservesaddress = obj.get(asset_quoted.toUpperCase()).toString(); 
+
+        System.out.println(asset_base + " reserves address: " + asset_base_reservesaddress); 
+        System.out.println(asset_quoted + " reserves address: " + asset_quoted_reservesaddress); 
         
-        // Step 3: Withdraw from the user account the set amount of asset2 (Waves) to 
-        // asset2_reservesaddress of Waves reserves address before sending to 
-        // the user asset1 (BTC)
+        String first_tx_res = null;
+        String second_tx_res = null;
+                
+        switch (type.toUpperCase()) {
+            case "SELL":            
+                // Get quote                
+                if (!fixed_base_amount) { // X ETH for a set amount of Waves
+                   quote = getPairQuote(asset_base, 1, asset_quoted, type);
+                }
+                else if (fixed_base_amount) {
+                // Get amount of Waves required to exchange for fixed amount of base currency (ETH).
+                    quote = getPairQuote(asset_base, amount, asset_quoted, type);
+                }
+                else  {
+                    return "The scenario does not exist";
+                }
+                    
+                System.out.println("ExchangePair_ETH2WAVES> This quote: " + quote); 
+                
+                if (!fixed_base_amount) {
+                    first_tx_res = SendWaves2Waves(amount, asset_quoted_reservesaddress, asset_quoted_address);
+                }
+                else if (fixed_base_amount) {
+                    first_tx_res = SendWaves2Waves(quote, asset_quoted_reservesaddress, asset_quoted_address);
+                }  else  {
+                    return "The scenario does not exist";
+                }
+                  
+                double amount_eth = 0;                  
+                if (!fixed_base_amount) {
+                    amount_eth = amount/quote;
+                    System.out.println(amount_eth + "is ETH amount to be received for " + amount + " WAVES");
+                }
+                else if (fixed_base_amount) {   
+                    amount_eth = amount;
+                }                    
+                    
+                second_tx_res =   SendETH2ETH(amount_eth, asset_base_reservesaddress, asset_base_address);
+                
+                break;
+            case "BUY":                
+                // Get quote
+                amount_eth = 0;
+                if (fixed_base_amount) {
+                    quote = getPairQuote(asset_base, amount, asset_quoted, type);
+                    System.out.println("Quote here: " + quote);
+                }
+                else if (!fixed_base_amount) { 
+                    quote = getPairQuote(asset_base, 1, asset_quoted, type); //1 ETH = XXX WAVES
+                    System.out.println("1 ETH is " + quote + " WAVES");
+                    amount_eth = amount/quote;
+                }
+
+                double amount_log = 0;
+                if (fixed_base_amount) {                      
+                    first_tx_res = SendETH2ETH(amount /* ETH */, asset_base_address, asset_base_reservesaddress);
+                    amount_log = amount;
+                    System.out.println("ETH amount: " + amount + " ETH");
+                } else {
+                    BigDecimal bd = BigDecimal.valueOf(amount_eth).setScale(10, BigDecimal.ROUND_HALF_UP);
+                    System.out.println("ETH amount (original): " + amount_eth + "ETH");
+                    amount_log = bd.doubleValue();                      
+                    first_tx_res = SendETH2ETH(bd.doubleValue() /* ETH */, asset_base_address, asset_base_reservesaddress); 
+                }                  
+                System.out.println("--------------------------------------------------------------------------------");
+                System.out.println("ETH amount: " + amount_log + " ETH");
+                System.out.println("ETH address (from): " + asset_base_address);
+                System.out.println("ETH address (to): " + asset_base_reservesaddress);
+                System.out.println("--------------------------------------------------------------------------------");
+                
+                // TODO: check error (if the result of 1st tx): abort
+                 
+                if (fixed_base_amount) {
+                    second_tx_res = SendWaves2Waves(quote /* WAVES */, asset_quoted_reservesaddress, asset_quoted_address);
+                    amount_log = quote;
+                } else {
+                    second_tx_res = SendWaves2Waves(amount /* WAVES */, asset_quoted_reservesaddress, asset_quoted_address);
+                    amount_log = amount;
+                }
+                System.out.println("--------------------------------------------------------------------------------");
+                System.out.println("WAVES amount (quote): " + amount_log);
+                System.out.println("WAVES address (from): " + asset_quoted_reservesaddress);
+                System.out.println("WAVES address (to): " + asset_quoted_address);
+                System.out.println("--------------------------------------------------------------------------------");
+                
+                // TODO: check error (if the result of 2ndt tx): abort + return ETH
+                  
+                break;
+            default:
+                System.out.println("ExchangePair> Invalid type of trasaction");           
+        }
         
-        // Step 3A: Get Waves seed for the user Waves account      
-        obj = new JSONObject(settings.wavesobj.toString());
-        System.out.println(obj.get(asset2_address)); 
-        String sourceseed = obj.get(asset2_address).toString(); 
-         
-        // Step 3B: Check if Waves balance is enough and exceeds minimum TX value (TODO)
+        // Log transaction results
+        Utils log = new  Utils();
+        
+        String pair = "ETH_WAVES_"+type.toUpperCase();       
+        String address_base_from = null;
+        String address_base_to = null;
+        String address_quote_from = null;
+        String address_quote_to = null;
+        String base_exchangetx_results = null;
+        String quote_exchangetx_results = null;
+        
+        if (type.toUpperCase().equals("SELL")) {
+            address_base_from = asset_base_reservesaddress;   // if fixed base, the reserves address
+            address_base_to = asset_base_address; 
+            address_quote_from = asset_quoted_address;
+            address_quote_to = asset_quoted_reservesaddress;
+            base_exchangetx_results = second_tx_res;
+            quote_exchangetx_results = first_tx_res;
+        } else if (type.toUpperCase().equals("BUY")) {
+            address_base_from = asset_base_address;            // reversed relative to "SELL"
+            address_base_to = asset_base_reservesaddress;      // reversed relative to "SELL"
+            address_quote_from = asset_quoted_reservesaddress; // reversed relative to "SELL"
+            address_quote_to = asset_quoted_address;           // reversed relative to "SELL"
+            base_exchangetx_results = first_tx_res;            // reversed relative to "SELL"
+            quote_exchangetx_results = second_tx_res;          // reversed relative to "SELL"
+        }
+            
+        result = log.LogTXResults(
+                pair, 
+                amount, 
+                fixed_base_amount, 
+                address_base_from, 
+                address_base_to, 
+                address_quote_from, 
+                address_quote_to, 
+                base_exchangetx_results, 
+                quote_exchangetx_results);
+                
+        return result;
+    }   
+
+    
+    public static String SendWaves2Waves(
+              double amount, 
+              String address_from, 
+              String address_to) throws Exception {
+        
+        Settings settings = new Settings();
+        settings.CollectionKeys();        
+     
+        // Get Waves seed       
+        JSONObject obj = new JSONObject(settings.wavesobj.toString());
+        System.out.println(obj.get(address_from)); 
+        String sourceseed = obj.get(address_from).toString(); 
+      
+        // TODO: check if Waves balance is enough and exceeds minimum TX value
         WavesTestnet waves = new  WavesTestnet();
-        long userbalance = waves.getBalance(asset2_address);
+        long userbalance = waves.getBalance(address_from);
         System.out.println("Waves user balance: " + String.valueOf(userbalance));
-         
-        // Step 3C: Withdraw Waves from user address
-        long amount = 0;
-        if (asset1_amount == -1 && asset2_amount != 1) { // scenario 1: X BTC for a set amount of Waves
-            if (userbalance < asset2_amount*100000000) { 	    	
-                return "Insufficient user balance";
-            }
-            amount = new Double(asset2_amount*100000000).longValue(); 
-        }
-        else if (asset1_amount != 1 && asset2_amount == -1) { // scenario 2:  set amount (0.000002 or 200 satoshi) of BTC for X Waves
-            if (userbalance < quote*100000000) { 	    	
-                return "Insufficient user balance";
-            }
-            amount = new Double(quote*100000000).longValue(); 
-        }
-        System.out.println("The amount of Waves (units) to be withdrawn: " + amount);
-        
+      
+        // Withdraw Waves 
+        long amount_baseunits = 0;
+        amount_baseunits = new Double(amount*100000000).longValue();
+        System.out.println("The amount of Waves (units) to be withdrawn: " + amount_baseunits);
+      
         String message = "Test TX";
-        String res = waves.SendTX(sourceseed, asset2_reservesaddress, amount, message);        
+        String res = waves.SendTX(sourceseed, address_to, amount_baseunits, message);
+        System.out.println("SendWaves2Waves, TX result: " + res);       
         
-        // Step 4: Check if the result is success, log TX id, and if not return a message (TODO).
-        System.out.println(res); 
-        if (res.length() != 44) // Case the length can be 43 also for success
-        {
-            System.out.println(res.length()); 
-            return "Withdrawal transaction failed";
-        }
+        return res;
+    }
+    
+    public String SendBTC2BTC(
+            long amount, 
+            String asset1_reservesaddress, 
+            String asset1_address) throws Exception {
         
-        // Step 5: Send the user the quoted amount of BTC from reserves 
+        String result = null;
+        Settings settings = new Settings();
         
-        // Step 5A: Get the user BTC address based on his account info.
-  
-        // Step 5B: Convert quote to satoshi
-        long amount2 = 0;
-        if (asset1_amount == -1 && asset2_amount != 1) { // scenario 1: X BTC for a set amount of Waves
-            amount2 = new Double(asset2_amount*100000000/quote).longValue(); // 26 (TODO: not all digits)
-            System.out.println("Quote: " + quote + ", Amount:" + amount2);
-        }
-        else if (asset1_amount != 1 && asset2_amount == -1) { // scenario 2:  set amount (0.000002 or 200 satoshi) of BTC for X Waves
-            amount2 = new Double(asset1_amount*100000000).longValue();
-            System.out.println("BTC amount to be withdrawn from reserves: " + amount2);
-        }
-        
-        // Step 5C: Check if BTC balance is enough and exceeds minimum TX value 
-        // (TODO and TODO: should be before all TX)
+        // TODO: check if BTC balance is enough and exceeds minimum TX value 
         
         // Note: This step involves consideration of how even small amount of BTC is 
-        // sent from A to B on BTC testnet. If 1368 BTC is send from A to B, the funds are 
+        // sent from A to B on BTC testnet. If 1368 units is send from A to B, the funds are 
         // sent to B and A, the same source. 611574=1368+610206 from A as 1368 to B and 
         // 610206 back to A. A fee of 13600 is withdrawn from A and addition to 1368 
         // as send amount.
-        
+      
         BitcoinTestnet_Blockcypher bitcoin = new BitcoinTestnet_Blockcypher();
         long reserves_balance = bitcoin.getBalance(asset1_reservesaddress);
-        System.out.println("The BTC sandbox reserves balance: " + reserves_balance);
-        
-        // Step 5D: Get privatekey & publickey of reserves BTC address
+        System.out.println("SendBTC2BTC> The BTC sandbox reserves balance: " + reserves_balance);
+      
+        // Get privatekey & publickey of reserves 
         settings.CollectionKeys(); // TODO: move to WAR initializer
-        obj = new JSONObject(settings.keysobj.toString());
+        JSONObject obj = new JSONObject(settings.keysobj.toString());
         JSONObject child = obj.getJSONObject("BTC");
-        System.out.println(child.toString()); 
+        System.out.println("SendBTC2BTC>" + child.toString()); 
         child = child.getJSONObject(asset1_reservesaddress);
         System.out.println("Private key: " + child.get("Private key").toString()); 
         System.out.println("Public key: " + child.get("Public key").toString());
         String privatekey = child.get("Private key").toString();
-        String publickey = child.get("Public key").toString(); 	
-        
-        bitcoin = new BitcoinTestnet_Blockcypher();
+        String publickey = child.get("Public key").toString();  
+      
         result = bitcoin.SendBTC(asset1_reservesaddress, asset1_address, 
-                                String.valueOf(amount2), privatekey, publickey); 
-        System.out.println(result); 
-        
-        // Step 6: Check if the result is success, log TX id, and if not rollback withdrawal
-        // Waves from the user account, error message. TODO
-        
+                              String.valueOf(amount), privatekey, publickey); 
+        System.out.println("SendBTC2BTC, TX result: " + result); 
+    
         return result;
+    }
+    
+    public static String SendETH2ETH(
+            double amount, 
+            String addressfrom, // from reserves if ETH_WAVES_BUY
+            String addressto) throws Exception {
+        
+        Settings settings = new Settings();
+        settings.CollectionKeys();      
+     
+        // Get Waves seed f  
+        JSONObject obj = settings.locateETHWalletByAddress(addressfrom);
+        System.out.println(obj.get("wallet")); 
+        String walletfrom = obj.getString("wallet"); 
+        String password = obj.getString("password");
+        System.out.println("Wallet from: " + walletfrom); 
+
+        // TODO: check if ETH balance is enough and exceeds minimum TX value 
+        EthereumTestnet_web3j eth = new EthereumTestnet_web3j();        
+        BigInteger addressfrom_balance = eth.getBalance(addressfrom);
+        System.out.println("ETH addressfrom balance: " + String.valueOf(addressfrom_balance)); // ETH addressfrom balance: 853171079733644000
+      
+        // Get full file name for the wallet and send ETH
+        String walletfile = null;
+        String OS = System.getProperty("os.name");
+        if (OS.equals("Windows 10")) {
+            walletfile = settings.win10_devfolder + "\\" + walletfrom;
+        }
+        else if (OS.equals("Linux")) {
+            walletfile = settings.linux_store + "/" + walletfrom;
+        }
+        
+        String res = eth.SendETH(walletfile, password, addressto, amount /* ETH */);        
+        System.out.println("SendETH2ETH, TX result: " + res); 
+        
+        return res;
     }
     
     public String getFeeStructure() {   
         
         Settings settings = new Settings();
         settings.CollectionCurrencyPairs(); // TODO: move to WAR initializer
-         
-        Map<String, Object> data = new HashMap<String, Object>(); 	
+        
+        Map<String, Object> data = new HashMap<String, Object>();   
         for (Map.Entry<String, Double> entry : settings.pairs.entrySet()) {
-             data.put(entry.getKey(), entry.getValue());
+            data.put(entry.getKey(), entry.getValue());
         }
 
-        JSONObject json = new JSONObject(data);		
+        JSONObject json = new JSONObject(data);     
         System.out.println(json.toString());
 
         String result = json.toString();
