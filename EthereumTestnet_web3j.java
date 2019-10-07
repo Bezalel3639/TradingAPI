@@ -16,6 +16,9 @@ import org.web3j.protocol.http.HttpService;
 import org.web3j.tx.Transfer;
 import org.web3j.utils.Convert;
 
+import com.mongodb.MongoClient;
+import org.bson.Document;
+
 public class EthereumTestnet_web3j {
 	
     Settings settings = new Settings(); // Ropsten
@@ -58,8 +61,9 @@ public class EthereumTestnet_web3j {
     
     public String GetNewAddress(String user, String password) throws Exception { 
     
-        Web3j web3 = Web3j.build(new HttpService(settings.url));
+        Web3j web3 = Web3j.build(new HttpService(settings.url));        
         String store = null;
+        Utils utils = new Utils();
         
         Web3ClientVersion web3ClientVersion = web3.web3ClientVersion().send();
         System.out.println(web3ClientVersion.getWeb3ClientVersion()); 
@@ -80,7 +84,7 @@ public class EthereumTestnet_web3j {
         // Generate wallet file
         String fileName = WalletUtils.generateNewWalletFile(password, new File(store));
         System.out.println(fileName);
-        
+         
         String walletfile = null;
         if (OS.equals("Windows 10")) {
             walletfile = store + "\\" + fileName;
@@ -91,8 +95,28 @@ public class EthereumTestnet_web3j {
         
         Credentials credentials = WalletUtils.loadCredentials(password, walletfile);
         String address = credentials.getAddress();
-        System.out.println(address);         
+        System.out.println(address); 
         
+        
+        // Encrypt password
+        Utils.TrippleDes td = utils.new TrippleDes();
+        String password_encrypted = td.encrypt(password);
+        // Get wallet data
+        String walletdata = utils.ReadFile(walletfile );        
+        // Prepare JSON for DB
+        String json = utils.MakeJSONFromWallet(address, password_encrypted, user, fileName, walletdata);
+        
+        // Store new wallet into MongoDB             
+        try {
+            Settings settings = new Settings();
+            MongoClient mongoClient = new MongoClient(settings.mongodb_host, settings.mongodb_port);
+            Document doc = Document.parse(json);
+            mongoClient.getDatabase("wallets").getCollection("ETH (testnets)").insertOne(doc);
+            mongoClient.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
         return address;     
     }
     
