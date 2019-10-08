@@ -17,7 +17,8 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
-import org.json.JSONObject;
+
+import org.web3j.crypto.Credentials;
 import org.web3j.crypto.WalletUtils;
 import org.web3j.protocol.Web3j;
 import org.web3j.protocol.core.DefaultBlockParameterName;
@@ -25,6 +26,10 @@ import org.web3j.protocol.core.methods.response.EthBlockNumber;
 import org.web3j.protocol.core.methods.response.Web3ClientVersion;
 import org.web3j.protocol.core.methods.response.EthGetBalance;
 import org.web3j.protocol.http.HttpService;
+
+import com.mongodb.MongoClient;
+import org.bson.Document;
+import org.json.JSONObject;
 
 public class Ethereum_web3j {
     
@@ -48,28 +53,28 @@ public class Ethereum_web3j {
 		
     public double getETHRate() throws Exception {
     	
-      String uri = settings.url_quotes;
-      double rate = 0;
+        String uri = settings.url_quotes;
+        double rate = 0;
+            
+        List<NameValuePair> parameters = new ArrayList<NameValuePair>();
+        parameters.add(new BasicNameValuePair("symbol","ETH")); 
         
-      List<NameValuePair> parameters = new ArrayList<NameValuePair>();
-      parameters.add(new BasicNameValuePair("symbol","ETH")); 
+        try {
+            String result = makeAPICall(uri, parameters);
+            JSONObject obj = new JSONObject(result);
+            JSONObject objnext = obj.getJSONObject("data");
+            objnext = objnext.getJSONObject("ETH");
+            objnext = objnext.getJSONObject("quote");
+            objnext = objnext.getJSONObject("USD");
+            rate = objnext.getDouble("price");   	    
+            System.out.println(rate); 
+        } catch (IOException e) {
+            System.out.println("Error: cannont access content - " + e.toString());
+        } catch (URISyntaxException e) {
+            System.out.println("Error: Invalid URL " + e.toString());
+        }
     
-      try {
-          String result = makeAPICall(uri, parameters);
-          JSONObject obj = new JSONObject(result);
-          JSONObject objnext = obj.getJSONObject("data");
-          objnext = objnext.getJSONObject("ETH");
-          objnext = objnext.getJSONObject("quote");
-          objnext = objnext.getJSONObject("USD");
-          rate = objnext.getDouble("price");   	    
-          System.out.println(rate); 
-      } catch (IOException e) {
-          System.out.println("Error: cannont access content - " + e.toString());
-      } catch (URISyntaxException e) {
-          System.out.println("Error: Invalid URL " + e.toString());
-      }
-        
-      return rate;	  
+        return rate;	  
     }
 	
     public String makeAPICall(String uri, List<NameValuePair> parameters)
@@ -126,6 +131,7 @@ public class Ethereum_web3j {
     public String GetNewAddress(String user, String password) throws Exception { 
         Web3j web3 = Web3j.build(new HttpService(settings.url_mainnet));
         String store = null;
+        Utils utils = new Utils();
         
         Web3ClientVersion web3ClientVersion = web3.web3ClientVersion().send();
         System.out.println(web3ClientVersion.getWeb3ClientVersion()); 
@@ -141,13 +147,44 @@ public class Ethereum_web3j {
         else {
             System.out.println("The OS is not supported"); 
             return "403"; // forbidden
-        }
+        }      
         
         // Generate wallet file
         String fileName = WalletUtils.generateNewWalletFile(password, new File(store));
         System.out.println(fileName);
         
-        return fileName;	 
+        String walletfile = null;
+        if (OS.equals("Windows 10")) {
+            walletfile = store + "\\" + fileName;
+        }
+        else if (OS.equals("Linux")) {
+            walletfile = store + "/" + fileName;
+        }
+        
+        Credentials credentials = WalletUtils.loadCredentials(password, walletfile);
+        String address = credentials.getAddress();
+        System.out.println(address); 
+        
+        // Encrypt password
+        Utils.TrippleDes td = utils.new TrippleDes();
+        String password_encrypted = td.encrypt(password);
+        // Get wallet data
+        String walletdata = utils.ReadFile(walletfile );        
+        // Prepare JSON for DB
+        String json = utils.MakeJSONFromWallet(address, password_encrypted, user, fileName, walletdata);
+        
+        // Store new wallet into MongoDB             
+        try {
+            Settings settings = new Settings();
+            MongoClient mongoClient = new MongoClient(settings.mongodb_host, settings.mongodb_port);
+            Document doc = Document.parse(json);
+            mongoClient.getDatabase("wallets").getCollection("ETH").insertOne(doc);
+            mongoClient.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        
+        return address;  
     }
 }
 
