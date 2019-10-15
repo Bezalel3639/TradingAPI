@@ -1,5 +1,9 @@
 package com.bezalel.trading_api;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.math.BigInteger;
 
 import org.json.JSONObject;
@@ -18,12 +22,12 @@ import io.swagger.annotations.ApiParam;
 @CrossOrigin(origins = "*", allowedHeaders = "*")
 @RestController
 @RequestMapping("/v1")
-@Api(value = "Ethereum Endpoints", description = "Ethereum sandbox API")
+@Api(value = "Ethereum Endpoints")
 public class Swagger_EthereumTestnet {
 	
     @RequestMapping(path="/Ethereum/Testnet/LastBlock/", method = RequestMethod.GET)
     @ApiOperation(value="Get last block", tags="Ethereum sandbox API")
-	public BigInteger getLastBlock() {
+    public BigInteger getLastBlock() {
         EthereumTestnet_web3j eth = new EthereumTestnet_web3j();
         BigInteger result = eth.getLastBlock();
           
@@ -58,7 +62,7 @@ public class Swagger_EthereumTestnet {
     public ResponseEntity<String> GetNewAddress(
             @PathVariable  @ApiParam(defaultValue = "Ronaldo") String user, 
             @PathVariable 
-            @ApiParam(defaultValue = "**3737*****") String password) throws Exception {
+            @ApiParam(defaultValue = "3****7") String password) throws Exception {
 
         EthereumTestnet_web3j eth = new EthereumTestnet_web3j();  
         String result = eth.GetNewAddress(user, password); 
@@ -104,7 +108,7 @@ public class Swagger_EthereumTestnet {
         String result = eth.SendETH(walletfile, password, addressto, amount); 
         
         // Validate results
-        if (result.endsWith("404")) {
+        if (result.equals("404")) {
             return new ResponseEntity<>("The wallet not found: " + walletfrom, HttpStatus.NOT_FOUND); 
         } else if (result.endsWith("403")) {
             return new ResponseEntity<>(HttpStatus.FORBIDDEN);
@@ -129,32 +133,46 @@ public class Swagger_EthereumTestnet {
         if (!eth.IsValidAddress(addressto))
             return new ResponseEntity<>("The destination address does not exist", HttpStatus.NOT_FOUND);
          
-        // Validate existence of wallet for the source address 
-        Settings settings = new Settings();
-        JSONObject wallet =  settings.locateETHWalletByAddress(addressfrom);
-        if (wallet == null)
+        // Get encryption tools
+        ExchangeSandbox es = new ExchangeSandbox();
+        Utils utils = new Utils();
+        Utils.TrippleDes td = utils.new TrippleDes();
+   
+        // Get wallet object from DB
+        JSONObject dbwallet = es.readDB_ETHWalletByAddress(addressfrom);
+        String encrypted_password = dbwallet.getString("password");
+        
+        if (dbwallet.has("ERROR")) 
             return new ResponseEntity<>("The wallet for the address " + addressfrom + " was not found", 
-                HttpStatus.NOT_FOUND);
-        
+                HttpStatus.NOT_FOUND);              
+         
         // Validate password
-        if (!wallet.getString("password").equals(password))
+        if (!td.decrypt(encrypted_password).equals(password))
             return new ResponseEntity<>("The password is not valid", HttpStatus.FORBIDDEN);
-       
-        // Get full file name for the wallet
+   
+        // Get original wallet file from DB object
         String walletfile = null;
-        String OS = System.getProperty("os.name");
-        if (OS.equals("Windows 10")) {
-            walletfile = settings.win10_devfolder + "\\" + wallet.getString("wallet");
-        }
-        else if (OS.equals("Linux")) {
-            walletfile = settings.linux_store + "/" + wallet.getString("wallet");
-        }
+        JSONObject wallet = dbwallet.getJSONObject("wallet");
+        JSONObject data = wallet.getJSONObject("data");
+        if (data == null)
+            return new ResponseEntity<>("The wallet data not found", HttpStatus.NOT_FOUND);
+        walletfile = data.toString();
         
-        if (walletfile == null)
-            return new ResponseEntity<>("The wallet not found", HttpStatus.NOT_FOUND);
+        // Use temporarily file on the disk to be able to use WalletUtils.loadCredential
+        File temp = null;
+        try {
+            temp = File.createTempFile("data", ".tmp");
+            BufferedWriter out = new BufferedWriter(new FileWriter(temp));
+            out.write(walletfile);
+            out.close();
+        } catch (IOException e) {
+            return new ResponseEntity<>("Error while creating temp file", HttpStatus.FORBIDDEN);
+        }  
        
         // Send ETH
-        String result = eth.SendETH(walletfile, password, addressto, amount); //Double.valueOf(amount)
+        String result = eth.SendETH(temp.getAbsolutePath(), password, addressto, amount); 
+        System.out.println("SendETHfromAddress> temp file location: " + temp.getAbsolutePath());
+        temp.delete(); 
         
         // Validate results
         if (result.endsWith("404")) {
