@@ -435,6 +435,35 @@ public class ExchangeSandbox {
         
         return result; 
     }
+
+    public JSONObject readDB_ETHWallet(String walletname) throws Exception {        
+        
+        Settings settings = new Settings();
+        MongoClient mongoClient = new MongoClient(settings.mongodb_host, settings.mongodb_port);       
+             
+        MongoDatabase database = mongoClient.getDatabase("wallets");
+        MongoCollection<Document> collection = database.getCollection("ETH (testnets)");
+
+        Document document = null;
+        try {
+            document = collection.find(eq("wallet.name", walletname)).first();
+            if (document == null) {             
+                System.out.println("Nothing was found in DB");
+                mongoClient.close(); 
+                return null;
+            }
+        } catch (Exception e) {
+            System.out.println("Exception error while searching in DB");
+            mongoClient.close(); 
+            return null;
+        }      
+         
+        JSONObject obj = new JSONObject(document.toJson());
+        System.out.println(obj.toString()); 
+        mongoClient.close(); 
+
+        return obj;
+    }  
     
     public JSONObject readDB_ETHWalletByAddress(String address) throws Exception {
         
