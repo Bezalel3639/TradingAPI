@@ -22,77 +22,77 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 
 public class ExchangeSandbox {
-	
+    
     public static double getPairQuote(
             String asset1, 
             double asset1_amount, 
             String asset2, 
             String side) {
 
-    	Settings settings = new Settings();
-    	String uri = settings.uri;
-	    double asset1_price = 0;
-	    double asset2_price = 0;
-	    double assets_rate = 0;	
-	    double assets_rate_new = 0;    
+        Settings settings = new Settings();
+        String uri = settings.uri;
+        double asset1_price = 0;
+        double asset2_price = 0;
+        double assets_rate = 0;	
+        double assets_rate_new = 0;    
    
-	    String asset1ID = getAssetId(asset1);
-	    String asset2ID = getAssetId(asset2);
-	    String arg = asset1ID + "," + asset2ID;
-	    
-	    if (!side.toUpperCase().equals("BUY") && !side.toUpperCase().equals("SELL")) {
-	    	System.out.println("Side: 403"); 
-	    	return -1; // return validation error
-	    }
-	    if (asset1.toUpperCase() == asset2.toUpperCase()) {
-	    	System.out.println("403"); // forbidden
-	    	return -1; // return validation error
-	    }
-	    if (asset1ID == "404" || asset2ID == "404") {
-	    	System.out.println("404"); // not found
-	    	return -1; // return validation error
-	    }
-	    
-	    List<NameValuePair> parameters = new ArrayList<NameValuePair>();
-	    parameters.add(new BasicNameValuePair("id", arg)); // <crypto1_id>,<crypto2_id> 
-	
-	    try {
-	    	Waves waves = new  Waves(); // no relation to Waves API
-	        String result = waves.makeAPICall(uri, parameters);
-	   	    JSONObject obj = new JSONObject(result);
-		    JSONObject objnext = obj.getJSONObject("data");
-		    System.out.println(obj.toString()); 
-		    JSONObject obj_1 = objnext.getJSONObject(asset1ID);
-		    JSONObject obj_2 = objnext.getJSONObject(asset2ID);
-		    
-		    objnext = obj_1;
-		    objnext = objnext.getJSONObject("quote");
-		    objnext = objnext.getJSONObject("USD");
-		    asset1_price = objnext.getDouble("price");  
-		    System.out.println("GetPairQuote> " + asset1 + " price: " + asset1_price + " USD");
-		    
-		    objnext = obj_2;
-		    objnext = objnext.getJSONObject("quote");
-		    objnext = objnext.getJSONObject("USD");
-		    asset2_price = objnext.getDouble("price");  
-		    System.out.println("GetPairQuote> " + asset2 +" price: " + asset2_price + " USD");
-		    
-		    if (asset1_price == 0) {
-		    	System.out.println("403"); // forbidden
-		    	return -1; // return validation error (zero denominator)		    
-		    }
-	    
-		    assets_rate = asset2_price/asset1_price;
-		    assets_rate_new = asset1_price/asset2_price;
-	    } catch (IOException e) {
-	        System.out.println("GetPairQuote> Error: cannont access content - " + e.toString());
-	    } catch (URISyntaxException e) {
-	        System.out.println("GetPairQuote> Error: Invalid URL " + e.toString());
-	    }
-	    
-	    String pair = asset1.toUpperCase() + "_" + asset2.toUpperCase();
-	    System.out.println("GetPairQuote> Pair: " + pair + ", Side: " + side.toUpperCase() + 
-	    		             ", Fee: " + getFeeValue(pair, side.toUpperCase()));
+        String asset1ID = getAssetId(asset1);
+        String asset2ID = getAssetId(asset2);
+        String arg = asset1ID + "," + asset2ID;
+        
+        if (!side.toUpperCase().equals("BUY") && !side.toUpperCase().equals("SELL")) {
+            System.out.println("Side: 403"); 
+            return -1; // return validation error
+        }
+        if (asset1.toUpperCase() == asset2.toUpperCase()) {
+            System.out.println("403"); // forbidden
+            return -1; // return validation error
+        }
+        if (asset1ID == "404" || asset2ID == "404") {
+            System.out.println("404"); // not found
+            return -1; // return validation error
+        }
+        
+        List<NameValuePair> parameters = new ArrayList<NameValuePair>();
+        parameters.add(new BasicNameValuePair("id", arg)); // <crypto1_id>,<crypto2_id> 
+    
+        try {
+            Waves waves = new  Waves(); // no relation to Waves API
+            String result = waves.makeAPICall(uri, parameters);
+               JSONObject obj = new JSONObject(result);
+            JSONObject objnext = obj.getJSONObject("data");
+            System.out.println(obj.toString()); 
+            JSONObject obj_1 = objnext.getJSONObject(asset1ID);
+            JSONObject obj_2 = objnext.getJSONObject(asset2ID);
+            
+            objnext = obj_1;
+            objnext = objnext.getJSONObject("quote");
+            objnext = objnext.getJSONObject("USD");
+            asset1_price = objnext.getDouble("price");  
+            System.out.println("GetPairQuote> " + asset1 + " price: " + asset1_price + " USD");
+            
+            objnext = obj_2;
+            objnext = objnext.getJSONObject("quote");
+            objnext = objnext.getJSONObject("USD");
+            asset2_price = objnext.getDouble("price");  
+            System.out.println("GetPairQuote> " + asset2 +" price: " + asset2_price + " USD");
+            
+            if (asset1_price == 0) {
+                System.out.println("403"); // forbidden
+                return -1; // return validation error (zero denominator)		    
+            }
+        
+            assets_rate = asset2_price/asset1_price;
+            assets_rate_new = asset1_price/asset2_price;
+        } catch (IOException e) {
+            System.out.println("GetPairQuote> Error: cannont access content - " + e.toString());
+        } catch (URISyntaxException e) {
+            System.out.println("GetPairQuote> Error: Invalid URL " + e.toString());
+        }
+        
+        String pair = asset1.toUpperCase() + "_" + asset2.toUpperCase();
+        System.out.println("GetPairQuote> Pair: " + pair + ", Side: " + side.toUpperCase() + 
+                             ", Fee: " + getFeeValue(pair, side.toUpperCase()));
         double exchange_rate_buy = (1 + getFeeValue(pair, "BUY"))*asset1_price/asset2_price;
         double exchange_rate_sell = (1 + getFeeValue(pair, "SELL"))*asset1_price/asset2_price;
   
@@ -103,45 +103,45 @@ public class ExchangeSandbox {
         System.out.println("--------------------------------------------------------------------------------");
 
         
-	    if (assets_rate == 0) {	    	
-	    	return -1; // return validation error (zero denominator)  
-	    }
+        if (assets_rate == 0) {	    	
+            return -1; // return validation error (zero denominator)  
+        }
 
-	    // Fee value in percents
-	    double quote = (1 + getFeeValue(pair, side.toUpperCase()))*asset1_amount*assets_rate_new;
-	    System.out.println("GetPairQuote> Quote: " + quote);
-	    System.out.println("GetPairQuote> You'll need " + quote + " WAVES for " + asset1_amount + " ETH");
-	    
-	    return quote;
-	}
+        // Fee value in percents
+        double quote = (1 + getFeeValue(pair, side.toUpperCase()))*asset1_amount*assets_rate_new;
+        System.out.println("GetPairQuote> Quote: " + quote);
+        System.out.println("GetPairQuote> You'll need " + quote + " WAVES for " + asset1_amount + " ETH");
+        
+        return quote;
+    }
         
     public static String getAssetId(String asset) {
-    	
-    	String ASSET_NOT_FOUND = "404";
-    	
-		Settings settings = new Settings();
-		settings.CollectionCryptoIDs(); // TODO: move to WAR initializer
-		if (settings.cryptoids.get(asset.toUpperCase()) == null) {
-			return ASSET_NOT_FOUND;  
-		}
-		
-		System.out.println(settings.cryptoids.get(asset.toUpperCase()));
-		
-		return settings.cryptoids.get(asset.toUpperCase());
+        
+        String ASSET_NOT_FOUND = "404";
+        
+        Settings settings = new Settings();
+        settings.CollectionCryptoIDs(); // TODO: move to WAR initializer
+        if (settings.cryptoids.get(asset.toUpperCase()) == null) {
+            return ASSET_NOT_FOUND;  
+        }
+        
+        System.out.println(settings.cryptoids.get(asset.toUpperCase()));
+        
+        return settings.cryptoids.get(asset.toUpperCase());
     }
      
     public static double getFeeValue(String pair, String side) {
-    	
-     	// Format sample: BTC_WAVES_SELL
-      	String value = pair.toUpperCase() + "_" + side.toUpperCase();
-      	
- 		Settings settings = new Settings();
- 		settings.CollectionCurrencyPairs(); // TODO: move to WAR initializer
-		if (settings.pairs.get(value) == null) {
-			System.out.println("The pair is not registered");  
-		}
-     	
- 		return settings.pairs.get(value);
+        
+         // Format sample: BTC_WAVES_SELL
+          String value = pair.toUpperCase() + "_" + side.toUpperCase();
+          
+         Settings settings = new Settings();
+         settings.CollectionCurrencyPairs(); // TODO: move to WAR initializer
+        if (settings.pairs.get(value) == null) {
+            System.out.println("The pair is not registered");  
+        }
+         
+         return settings.pairs.get(value);
     }    
    
     public String ExchangePair_ETH2WAVES(
@@ -384,37 +384,47 @@ public class ExchangeSandbox {
     
     public String SendETH2ETH(
             double amount, 
-            String addressfrom, // from reserves if ETH_WAVES_BUY
+            String addressfrom, 
             String addressto) throws Exception {
         
         Settings settings = new Settings();
-        settings.CollectionKeys();        
-       
-        // Get Waves seed   
-        JSONObject obj = settings.locateETHWalletByAddress(addressfrom);
-        System.out.println(obj.get("wallet")); 
-        String walletfrom = obj.getString("wallet"); 
-        String password = obj.getString("password");
-        System.out.println("Wallet from: " + walletfrom); 
+        settings.CollectionKeys();       
+    
+        // Get wallet object from DB
+        ExchangeSandbox es = new ExchangeSandbox();
+        JSONObject dbwallet = es.readDB_ETHWalletByAddress(addressfrom);
+        String encrypted_password = dbwallet.getString("password");
+        
+        Utils utils = new Utils();
+        Utils.TrippleDes td = utils.new TrippleDes();
+        String password = td.decrypt(encrypted_password);
         
         // TODO: check if ETH balance is enough and exceeds minimum TX value 
         EthereumTestnet_web3j eth = new EthereumTestnet_web3j();        
         BigInteger addressfrom_balance = eth.getBalance(addressfrom);
-        System.out.println("ETH addressfrom balance: " + String.valueOf(addressfrom_balance)); // ETH addressfrom balance: 853171079733644000
+        System.out.println("ETH addressfrom balance: " + String.valueOf(addressfrom_balance)); 
       
-        // Get full file name for the wallet and send ETH
+        // Get original wallet file from DB object
         String walletfile = null;
-        String OS = System.getProperty("os.name");
-        if (OS.equals("Windows 10")) {
-            walletfile = settings.win10_devfolder + "\\" + walletfrom;
-        }
-        else if (OS.equals("Linux")) {
-            walletfile = settings.linux_store + "/" + walletfrom;
-        }
+        JSONObject wallet = dbwallet.getJSONObject("wallet");
+        JSONObject data = wallet.getJSONObject("data");
+        walletfile = data.toString();
         
-        String res = eth.SendETH(walletfile, password, addressto, amount /* ETH */);        
+        // Use temporarily file on the disk to be able to use WalletUtils.loadCredential
+        File temp = null;
+        try {
+            temp = File.createTempFile("data", ".tmp");
+            BufferedWriter out = new BufferedWriter(new FileWriter(temp));
+            out.write(walletfile);
+            out.close();
+        } catch (IOException e) {
+            System.out.println("SendETH2ETH> Error while creating temp file");
+            return "204"; // no content
+        }  
+        
+        String res = eth.SendETH(temp.getAbsolutePath(), password, addressto, amount); 
         System.out.println("SendETH2ETH, TX result: " + res); 
-         
+        
         return res;
     }
     
