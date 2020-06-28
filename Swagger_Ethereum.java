@@ -4,6 +4,7 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 
+import org.json.JSONObject;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -11,6 +12,13 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
+
+import com.bezalel.trading_api.Utils.TrippleDes;
+
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.math.BigInteger;
 
 @CrossOrigin(origins = "*", allowedHeaders = "*")
@@ -53,23 +61,23 @@ public class Swagger_Ethereum {
     
     @RequestMapping(path="/Ethereum/IsAddressValid/{address}", method = RequestMethod.GET)
     @ApiOperation(value="Check if address is valid", tags="Ethereum API")
-    public boolean IsAddressValid(
+    public boolean isAddressValid(
             @PathVariable 
             @ApiParam(defaultValue = "65ab5cf3b2b701fb2f89fd10802f57c60da2470e") String address) 
             throws Exception {
         
         Ethereum_web3j eth = new Ethereum_web3j();  
-        return eth.IsValidAddress(address); 
+        return eth.isValidAddress(address); 
     }
     
     @RequestMapping(path="/Ethereum/GetNewAddress/{user}/{password}", method = RequestMethod.GET)
     @ApiOperation(value="Generate new Ethreum address", tags="Ethereum API")
-    public ResponseEntity<String> GetNewAddress(
+    public ResponseEntity<String> getNewAddress(
             @PathVariable String user,
             @PathVariable String password) throws Exception {
 
         Ethereum_web3j eth = new Ethereum_web3j();  
-        String result = eth.GetNewAddress(user, password); 
+        String result = eth.getNewAddress(user, password); 
         
         if (result.endsWith("403")) {
             return new ResponseEntity<>(HttpStatus.FORBIDDEN); 
@@ -77,7 +85,31 @@ public class Swagger_Ethereum {
             return new ResponseEntity<>(result, HttpStatus.OK);
         }      
     }
+    
+    @RequestMapping(path="/Ethereum/SendFromAddress/{addressfrom}/{addressto}/{amount}/{password}", method = RequestMethod.POST)
+    @ApiOperation(value="Send ETH", tags="Ethereum API")
+    public ResponseEntity<String> sendETHfromAddress(
+            @PathVariable @ApiParam(defaultValue = "0x9d2cfc32529ad2998150194199816e0c6f691030") String addressfrom, 
+            @PathVariable @ApiParam(defaultValue = "0x3fc7e949eb925fb22d729cd035a7b48373901b96") String addressto, 
+            @PathVariable @ApiParam(defaultValue = "0.0001") double amount,
+            @PathVariable String password) throws Exception { 
+
+        // Validate password
+        Settings settings = new Settings();
+        String true_password = settings.settings_password;
+        System.out.println("True password: " + true_password + "Entered password: " + password);
+        if (!true_password.equals(password))
+            return new ResponseEntity<>("Wrong password!", HttpStatus.UNAUTHORIZED);       
+        
+        // Send ETH
+        Ethereum_web3j eth = new Ethereum_web3j();
+        JSONObject result = eth.sendETH2ETH(amount, addressfrom, addressto);
+        
+        // Validate results
+        if (result.get("status").equals("-1")) {          
+            return new ResponseEntity<>(result.get("data").toString(), HttpStatus.FORBIDDEN);
+        } else {
+            return new ResponseEntity<>(result.get("data").toString(), HttpStatus.OK);  
+        }
+    }
 }
-
-
-
