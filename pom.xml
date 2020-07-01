@@ -5,10 +5,10 @@
 	
 	<groupId>com.bezalel</groupId>
 	<artifactId>trading_api</artifactId>
-	<version>1.0.2</version>
+	<version>1.0.26</version>
 	<packaging>war</packaging> 
 	<name>trading_api</name>
-	<description>Demo project for Spring Boot</description>
+	<description>Fintech Gateway's Trading API</description>
 		
 	<parent>
 		<groupId>org.springframework.boot</groupId>
@@ -62,7 +62,7 @@
         <dependency>
             <groupId>info.blockchain</groupId>
             <artifactId>api</artifactId>
-            <version>2.0.0</version>
+            <version>2.0.0</version>  
         </dependency> 
           
         <dependency>
@@ -86,33 +86,33 @@
         <dependency>
             <groupId>com.paypal.sdk</groupId>
             <artifactId>rest-api-sdk</artifactId>
-             <version>1.14.0</version>
+            <version>1.14.0</version>
         </dependency>
-
+   
         <dependency>
             <groupId>com.paypal.sdk</groupId>
             <artifactId>paypal-core</artifactId>
             <version>1.7.2</version>
-        </dependency>        
-
+        </dependency>
+        
         <dependency>
             <groupId>com.wavesplatform</groupId>
             <artifactId>wavesj</artifactId>
             <version>0.14.1</version>
-        </dependency>         
-
+        </dependency> 
+        
         <dependency>
             <groupId>com.thetransactioncompany</groupId>
             <artifactId>cors-filter</artifactId>
             <version>1.3.2</version>
         </dependency>         
-    
+
         <dependency>
             <groupId>org.mongodb</groupId>
             <artifactId>mongodb-driver</artifactId>
             <version>3.4.3</version>
-        </dependency> 
-        
+        </dependency>        
+
         <dependency>
             <groupId>org.mongodb</groupId>
             <artifactId>mongodb-driver-core</artifactId>
@@ -136,7 +136,14 @@
             <groupId>org.jsoup</groupId>
             <artifactId>jsoup</artifactId>
             <version>1.12.1</version>
-        </dependency>    
+            <!--scope>test</scope-->
+        </dependency>  
+        
+        <dependency>
+            <groupId>commons-io</groupId>
+            <artifactId>commons-io</artifactId>
+            <version>2.6</version>
+        </dependency>  
     </dependencies>
 	
     <repositories>
@@ -159,7 +166,7 @@
 		<plugins>
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
-				<artifactId>spring-boot-maven-plugin</artifactId>							
+				<artifactId>spring-boot-maven-plugin</artifactId>								
 				<executions>
                     <execution>                  
                         <goals>
@@ -169,7 +176,8 @@
                         <configuration>
                         <additionalProperties>
                         <java.version>${java.version}</java.version>
-                        <comment>Auto-increamented build number added</comment>
+                        <build_type>Beta</build_type>
+                        <comment>Fix: new ETH address from wallet name</comment>                        
                         </additionalProperties>
                         </configuration>                      
                     </execution>
