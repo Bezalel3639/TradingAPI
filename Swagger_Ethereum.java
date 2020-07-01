@@ -12,13 +12,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
-
-import com.bezalel.trading_api.Utils.TrippleDes;
-
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
 import java.math.BigInteger;
 
 @CrossOrigin(origins = "*", allowedHeaders = "*")
@@ -77,13 +70,14 @@ public class Swagger_Ethereum {
             @PathVariable String password) throws Exception {
 
         Ethereum_web3j eth = new Ethereum_web3j();  
-        String result = eth.getNewAddress(user, password); 
-        
-        if (result.endsWith("403")) {
-            return new ResponseEntity<>(HttpStatus.FORBIDDEN); 
+        JSONObject result = eth.getNewAddress(user, password); 
+         
+        // Validate results
+        if (result.get("status").equals("-1")) {          
+            return new ResponseEntity<>(result.get("data").toString(), HttpStatus.FORBIDDEN);
         } else {
-            return new ResponseEntity<>(result, HttpStatus.OK);
-        }      
+            return new ResponseEntity<>(result.get("data").toString(), HttpStatus.OK);  
+        }
     }
     
     @RequestMapping(path="/Ethereum/SendFromAddress/{addressfrom}/{addressto}/{amount}/{password}", method = RequestMethod.POST)
