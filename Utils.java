@@ -6,6 +6,8 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.math.BigInteger;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.KeySpec;
@@ -23,6 +25,7 @@ import org.bson.Document;
 import org.codehaus.jettison.json.JSONObject; 
 import com.mongodb.MongoClient;
 import com.mongodb.MongoCredential;
+import com.mongodb.MongoException;
 import com.mongodb.ServerAddress;
 
 public class Utils {
@@ -244,6 +247,7 @@ public class Utils {
         return results_obj.toString();
     }
     
+    // Limitation: the function does not work if line/file is not terminated
     public String readFile(String wallet_ffn) throws Exception {      
         File file = new File(wallet_ffn);         
         BufferedReader br = new BufferedReader(new FileReader(file)); 
@@ -253,6 +257,17 @@ public class Utils {
         br.close();
 
         return data;
+    } 
+    
+    // Reads files including files with no terminating characters
+    public String readFileAsString(String ffn) throws Exception {
+       File file = new File(ffn); 
+       if (!file.exists()) return "The file " + ffn + " is not found!";
+       if (!file.canRead()) return "No permissions to read the file " + ffn + " !";
+       if (file.length() == 0) return "The file " + ffn + " is empty!";
+
+       String data = new String(Files.readAllBytes(Paths.get(ffn)));
+       return data.toString();
     } 
     
     public int utilityGetRandomNumber(int min, int max) {
@@ -286,5 +301,5 @@ public class Utils {
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
         }
-    } 
-} 
+    }    
+}
