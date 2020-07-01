@@ -25,21 +25,17 @@ function getCurrentVersion {
     pos1=`awk -v a="$1" -v b="$search1" 'BEGIN{print index(a, b)}'`
     pos2=`awk -v a="$1" -v b="$search2" 'BEGIN{print index(a, b)}'`
     #echo $pos1  $pos2 # 19 26
-    echo "$1" | cut -c $((pos1+1))-$((pos2-1)) # 1.0.5
+    echo "$1" | cut -c $((pos1+1))-$((pos2-1)) 
 }
 
 # Get increamented version string as MAJOR.MINOR.BUILD+1 
 function getIncreamentedVersion {
     MAJOR=$(echo $1 | awk '{split($0,a,"."); print a[1]}') 
-    #echo $MAJOR
     MINOR=$(echo $1 | awk '{split($0,a,"."); print a[2]}') 
-    #echo $MINOR
-    BUILD=$(echo $1 | awk '{split($0,a,"."); print a[3]}') 
-    #echo $BUILD
+    BUILD=$(echo $1 | awk '{split($0,a,"."); print a[3]}')
 
-    #echo "$MAJOR.$MINOR.$((BUILD+1))" # 1.0.1, OK
     increamented_version=`echo "$MAJOR.$MINOR.$((BUILD+1))"`
-    echo $increamented_version # 1.0.1, OK
+    echo $increamented_version 
 }
 
 getFirstVersionLineFromPOM 
@@ -47,11 +43,11 @@ raw_pom_version=$(getFirstVersionLineFromPOM)
 current_version=$(getCurrentVersion "$raw_pom_version")
 increamented_version=$(getIncreamentedVersion "$current_version")
 
-echo "Raw current version: $raw_pom_version"       # Raw current version: <version>1.0.13</version>
-echo "My current version: $current_version"        # My current version: 1.0.5
-echo "Increamented version: $increamented_version" # Increamented version: 1.0.6
+echo "Raw current version: $raw_pom_version"       
+echo "My current version: $current_version"        
+echo "Increamented version: $increamented_version" 
 
 # Update pom.xml with new version
-sed -i "s/$current_version/$increamented_version/g" pom.xml 
+sed -i "0,/$current_version/{s/$current_version/$increamented_version/}" pom.xml 
 
 mvn clean install
