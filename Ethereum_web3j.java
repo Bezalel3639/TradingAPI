@@ -3,6 +3,7 @@ package com.bezalel.trading_api;
 import static com.mongodb.client.model.Filters.eq;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -11,6 +12,7 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.commons.io.FileUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHeaders;
 import org.apache.http.NameValuePair;
@@ -21,6 +23,7 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
+import org.web3j.crypto.CipherException;
 import org.web3j.crypto.Credentials;
 import org.web3j.crypto.WalletUtils;
 import org.web3j.protocol.Web3j;
@@ -36,6 +39,7 @@ import org.web3j.utils.Convert;
 import com.bezalel.trading_api.Utils.TrippleDes;
 import com.mongodb.MongoClient;
 import com.mongodb.MongoCredential;
+import com.mongodb.MongoException;
 import com.mongodb.ServerAddress;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
@@ -141,12 +145,27 @@ public class Ethereum_web3j {
         return WalletUtils.isValidAddress(address);
     }
     
-    public String getNewAddress(String user, String password) throws Exception {
+    public JSONObject getNewAddress(String user, String password) throws Exception {
         String network = "Mainnet";
+        String db_name = "wallets"; 
         Web3j web3 = Web3j.build(new HttpService(settings.url_mainnet));
         String store = null;
         Utils utils = new Utils();
         
+        // Validate DB connection 
+        JSONObject result = null; 
+        JSONObject connect_result = new JSONObject();
+        connect_result = validateMongoDBConnection(settings.user, db_name, settings.password);        
+        if (connect_result.get("status").equals("-1")) {          
+            result = new JSONObject();
+            result.put("status", "-1");
+            result.put("data", "The operation rejected: " + connect_result.get("data").toString());
+            return result;
+        } else {
+            System.out.println("GetNewAddress> " + connect_result.get("data").toString());  
+        }
+        
+        // Prepare Web3j
         Web3ClientVersion web3ClientVersion = web3.web3ClientVersion().send();
         System.out.println("GetNewAddress>" + web3ClientVersion.getWeb3ClientVersion()); 
         
@@ -160,62 +179,115 @@ public class Ethereum_web3j {
         }
         else {
             System.out.println("GetNewAddress> The OS is not supported"); 
-            return "403"; // forbidden
+            result = new JSONObject();
+            result.put("status", "-1");
+            result.put("data", "The OS is not supported");
+            return result;
         }      
         
-	// Generate wallet file
-	String fileName = WalletUtils.generateNewWalletFile(password, new File(store));
-	System.out.println(fileName);
-
-	String walletfile = null;
-	if (OS.equals("Windows 10")) {
-	   walletfile = store + "\\" + fileName;
-	}
-	else if (OS.equals("Linux")) {
-	   walletfile = store + "/" + fileName;
-	}
-
-	Credentials credentials = WalletUtils.loadCredentials(password, walletfile);
-	String address = credentials.getAddress();
-	System.out.println(address); 
-
-	// Encrypt password
-	Utils.TrippleDes td = utils.new TrippleDes();
-	String password_encrypted = td.encrypt(password);
-	// Get wallet data
-	String walletdata = utils.readFile(walletfile );        
-	// Prepare JSON for DB
-	String json = utils.makeJSONFromWallet(address, password_encrypted, network, user, fileName, walletdata);
-
-	// Store new wallet into MongoDB             
-	try {
-	   Settings settings = new Settings();
-	   String db_name = "wallets";
-	   MongoCredential credential = MongoCredential.createCredential(
-	           settings.user, 
-	           db_name, 
-	           settings.password.toCharArray());
-	   MongoClient mongoClient = new MongoClient(new ServerAddress(
-	           settings.mongodb_host, 
-	           settings.mongodb_port),
-	           Arrays.asList(credential));
-	   
-	   Document doc = Document.parse(json);
-	   mongoClient.getDatabase(db_name).getCollection("ETH").insertOne(doc);
-	   mongoClient.close();
-	} catch (Exception e) {
-	   e.printStackTrace();
-	}
+        // Generate wallet file
+        String fileName = null;
+        try {
+            fileName = WalletUtils.generateNewWalletFile(password, new File(store));
+            System.out.println("GetNewAddress> " + fileName);
+            System.out.println("GetNewAddress> WalletUtils.generateNewWalletFile succeeded!"); 
+        } catch (Exception e) {
+            System.out.println("GetNewAddress> WalletUtils.generateNewWalletFile generated exception!"); 
+            result = new JSONObject();
+            result.put("status", "-1");
+            result.put("data", "WalletUtils.generateNewWalletFile generated exception!");
+            return result;
+        }
         
-        return "Debugging new address failure"; 
-        //return address;  
+        // Get address from wallet name 
+        int last_hyphen = fileName.lastIndexOf("-"); 
+        int last_dot = fileName.lastIndexOf("."); 
+        String address = "0x" + fileName.substring(last_hyphen+1, last_dot);
+        System.out.println("GetNewAddress> A newaddress from the wallet name: " + address); 
+        
+        // Get wallet data 
+        String walletfile = null;
+        String walletdata = null;
+        if (OS.equals("Windows 10")) {
+            walletfile = store + "\\" + fileName;
+        }
+        else if (OS.equals("Linux")) {
+            walletfile = store + "/" + fileName;            
+        }        
+        System.out.println("GetNewAddress> walletfile : " + walletfile);
+        File file = new File(walletfile);
+        file.setReadable(true);
+        if (!file.exists()) {
+            System.out.println("GetNewAddress> The file " + walletfile + " is not found!");
+            result = new JSONObject();
+            result.put("status", "-1");
+            result.put("data", "The file " + walletfile + " is not found!");
+            return result;
+        }
+        if (file.canRead()) {
+            file.setReadable(true);
+            walletdata = FileUtils.readFileToString(file, "UTF-8");
+            System.out.println("GetNewAddress> The file " + walletfile + " is readable!");
+            System.out.println("GetNewAddress> The wallet data: " + walletdata);
+        } else {
+            System.out.println("GetNewAddress> No permissions to read the file " + walletfile + "!");
+            result = new JSONObject();
+            result.put("status", "-1");
+            result.put("data", "No permissions to read the file " + walletfile + "!");
+            return result;
+        }
+        
+        // Encrypt password
+        Utils.TrippleDes td = utils.new TrippleDes();
+        String password_encrypted = td.encrypt(password);    
+        // Prepare JSON for DB
+        String json = utils.makeJSONFromWallet(address, password_encrypted, network, user, fileName, walletdata);
+        System.out.println("GetNewAddress> result: " + json);
+                
+        // Store new wallet into MongoDB             
+        try {
+            Settings settings = new Settings();
+            MongoCredential credential = MongoCredential.createCredential(
+                    settings.user, 
+                    db_name, 
+                    settings.password.toCharArray());
+            MongoClient mongoClient = new MongoClient(new ServerAddress(
+                    Settings.mongodb_host, 
+                    settings.mongodb_port),
+                    Arrays.asList(credential));
+            
+            Document doc = Document.parse(json);
+            mongoClient.getDatabase(db_name).getCollection("ETH").insertOne(doc);
+            mongoClient.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        
+        result = new JSONObject();
+        result.put("status", "200");
+        result.put("data", address);
+        return result;
     }
  
     public JSONObject sendETH2ETH(double amount, String addressfrom, String addressto) throws Exception {
 
         String asset = "ETH";  
         int gas_limit = 21000;
-        JSONObject result = null;       
+        JSONObject result = null; 
+        Utils utils = new Utils();
+        
+        // Validate DB connection 
+        String db_name = "wallets";  
+        JSONObject connect_result = new JSONObject();
+        connect_result = validateMongoDBConnection(settings.user, db_name, settings.password);        
+        if (connect_result.get("status").equals("-1")) {          
+            result = new JSONObject();
+            result.put("status", "-1");
+            result.put("data", "The transaction rejected: " + connect_result.get("data").toString());
+            return result;
+        } else {
+            System.out.println("SendETH2ETH> " + connect_result.get("data").toString());  
+        }
         
         // Validate addresses
         System.out.println("SendETH2ETH> Validation of the source address...");
@@ -265,14 +337,13 @@ public class Ethereum_web3j {
          
         // Prepare for the source balance validation. Get source balance.
         BigInteger balance = getBalance(addressfrom);
-        // SendETH2ETH> The source balance: 2856699995107000 WEI or 0.002856699995107 ETH
         System.out.println("SendETH2ETH> The source balance: " + balance + " WEI or " + Convert.fromWei(balance.toString(), Convert.Unit.ETHER)  + " ETH"); // 2856699995107000 WEI
         
         // Estimate network fee for transfer. Estimated gas price unit is ETH.
         // The "transaction fee" is "gas limit" x "gas price", where gas price  
         // unit is GWEI. Since Transfer.sendFunds is used for transfer, the   
         // default network gas limit, gas price are used, which are 21000 (the  
-        // standard gas limit) and fluctuating value ("standard" gas price of 
+        // standard gas limit) and a fluctuating value ("standard" gas price of 
         // ethgasstation.info) respectively.
         long gas_price = Settings.eth_gas_price*1000000000L; // GWEI to WEI, 1 GWEI = 10^9 WEI 
         BigDecimal estimated_fee = Convert.fromWei(Long.toString(gas_limit*gas_price), Convert.Unit.ETHER); // Estimated fee: 0.00084 (eth_gas_price: 40 GWEI)
@@ -297,7 +368,6 @@ public class Ethereum_web3j {
         String encrypted_password = dbwallet.getString("password");
         System.out.println("SendETH2ETH> The source wallet is found! The encrypted password: " + encrypted_password);
         
-        Utils utils = new Utils();
         Utils.TrippleDes td = utils.new TrippleDes();
         String password = td.decrypt(encrypted_password);
         
@@ -381,8 +451,7 @@ public class Ethereum_web3j {
     
         // Log transaction results
         int execution_time = (int) (((double) elapsedTime)/1000); // sec
-        Utils utililities = new  Utils();
-        String log = utililities.logTransferTXResults(amount, addressfrom, addressto, transactionReceipt.toString(), execution_time);
+        String log = utils.logTransferTXResults(amount, addressfrom, addressto, transactionReceipt.toString(), execution_time);
         System.out.println("SendETH2ETH> The transaction log added to MongoDB: " + log);
         
         result = new JSONObject(); 
@@ -419,11 +488,35 @@ public class Ethereum_web3j {
         mongoClient.close(); 
 
         return obj;
-    } 
+    }
+   
+   public JSONObject validateMongoDBConnection(String user, String database, String password) throws Exception {        
+       Settings settings = new Settings();
+       JSONObject result = null;         
+
+       MongoCredential credential = MongoCredential.createCredential(user, database, password.toCharArray());
+       MongoClient mongoClient = null;
+       
+       long startTime = System.currentTimeMillis();
+       try {
+           mongoClient = new MongoClient(new ServerAddress(Settings.mongodb_host, settings.mongodb_port), Arrays.asList(credential));
+           mongoClient.getAddress();
+       } catch (MongoException e) {
+           System.out.println("ValidateMongoDBConnection> Server is unavailable!" + e.getMessage());
+           mongoClient.close();
+           result = new JSONObject(); 
+           result.put("status", "-1");
+           result.put("data", "server is unavailable!");
+           return result;
+       }
+       mongoClient.close();
+       long stopTime = System.currentTimeMillis();
+       long elapsedTime = stopTime - startTime;
+       System.out.println("ValidateMongoDBConnection> Time (millisec): " + elapsedTime + ", Time (sec): " + ((double) elapsedTime)/1000 + ", Time (min): " + ((double) elapsedTime)/1000/60);
+
+       result = new JSONObject(); 
+       result.put("status", "200");
+       result.put("data", "Database connection is verified!");
+       return result;    
+   }
 }
-
-
-
-
-
-
