@@ -16,13 +16,16 @@ import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.Random;
+
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.DESedeKeySpec;
+
 import org.apache.commons.codec.binary.Base64;
 import org.bson.Document;
 import org.codehaus.jettison.json.JSONObject; 
+
 import com.mongodb.MongoClient;
 import com.mongodb.MongoCredential;
 import com.mongodb.MongoException;
@@ -31,6 +34,7 @@ import com.mongodb.ServerAddress;
 public class Utils {
     
     public String logTransferTXResults (
+            String type /* ETH2ETH etc */,
             double amount,
             String address_from,
             String address_to,
@@ -44,7 +48,7 @@ public class Utils {
         JSONObject results_obj = new JSONObject();
         String date = new Date().toString();
         results_obj.put("date", date);        
-        results_obj.put("pair", "ETH2TH"); 
+        results_obj.put("pair", type); 
         results_obj.put("amount", amount);
         results_obj.put("address_from", address_from);
         results_obj.put("address_to", address_to);
@@ -87,7 +91,7 @@ public class Utils {
         String date = new Date().toString();
         results_obj.put("date", date);
         
-        results_obj.put("pair", pair); 
+        results_obj.put("pair", pair); // ETH_WAVES_BUY
         results_obj.put("amount", amount);
         results_obj.put("fixed_base_amount", fixed_base_amount);
         results_obj.put("address_base_from", address_base_from);
@@ -247,13 +251,30 @@ public class Utils {
         return results_obj.toString();
     }
     
-    // Limitation: the function does not work if line/file is not terminated
-    public String readFile(String wallet_ffn) throws Exception {      
-        File file = new File(wallet_ffn);         
+    public String readLine(String ffn) throws Exception {
+        File file = new File(ffn); 
         BufferedReader br = new BufferedReader(new FileReader(file)); 
         
         // Read one line
-        String data = br.readLine(); 
+        String data = br.readLine();
+        br.close();
+
+        return data;
+    } 
+    
+    public String readFile(String ffn) throws Exception {      
+        File file = new File(ffn);  
+        if (!file.exists()) return "The file " + ffn + " is not found!";
+        if (!file.canRead()) return "No permissions to read the file " + ffn + " !";
+        if (file.length() == 0) return "The file " + ffn + " is empty!";
+        BufferedReader br = new BufferedReader(new FileReader(file)); 
+        
+        // Read lines
+        String data = br.readLine();
+        while(data != null){
+            System.out.println(data);
+            data = br.readLine();
+        }
         br.close();
 
         return data;
@@ -301,5 +322,35 @@ public class Utils {
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
         }
-    }    
+    }
+    
+    public org.json.JSONObject validateMongoDBConnection(String user, String database, String password) throws Exception {        
+        Settings settings = new Settings();
+        org.json.JSONObject result = null;         
+
+        MongoCredential credential = MongoCredential.createCredential(user, database, password.toCharArray());
+        MongoClient mongoClient = null;
+        
+        long startTime = System.currentTimeMillis();
+        try {
+            mongoClient = new MongoClient(new ServerAddress(Settings.mongodb_host, settings.mongodb_port), Arrays.asList(credential));
+            mongoClient.getAddress();
+        } catch (MongoException e) {
+            System.out.println("ValidateMongoDBConnection> Server is unavailable!" + e.getMessage());
+            mongoClient.close();
+            result = new org.json.JSONObject(); 
+            result.put("status", "-1");
+            result.put("data", "server is unavailable!");
+            return result;
+        }
+        mongoClient.close();
+        long stopTime = System.currentTimeMillis();
+        long elapsedTime = stopTime - startTime;
+        System.out.println("ValidateMongoDBConnection> Time (millisec): " + elapsedTime + ", Time (sec): " + ((double) elapsedTime)/1000 + ", Time (min): " + ((double) elapsedTime)/1000/60);
+
+        result = new org.json.JSONObject(); 
+        result.put("status", "200");
+        result.put("data", "Database connection is verified!");
+        return result;    
+    }
 }
