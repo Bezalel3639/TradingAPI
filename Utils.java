@@ -16,16 +16,13 @@ import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.Random;
-
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.DESedeKeySpec;
-
 import org.apache.commons.codec.binary.Base64;
 import org.bson.Document;
-import org.codehaus.jettison.json.JSONObject; 
-
+import org.codehaus.jettison.json.JSONObject;
 import com.mongodb.MongoClient;
 import com.mongodb.MongoCredential;
 import com.mongodb.MongoException;
@@ -91,7 +88,7 @@ public class Utils {
         String date = new Date().toString();
         results_obj.put("date", date);
         
-        results_obj.put("pair", pair); // ETH_WAVES_BUY
+        results_obj.put("pair", pair); 
         results_obj.put("amount", amount);
         results_obj.put("fixed_base_amount", fixed_base_amount);
         results_obj.put("address_base_from", address_base_from);
@@ -130,7 +127,7 @@ public class Utils {
                         db_name, 
                         settings.password.toCharArray());
                 MongoClient mongoClient = new MongoClient(new ServerAddress(
-                        settings.mongodb_host, 
+                        Settings.mongodb_host, 
                         settings.mongodb_port),
                         Arrays.asList(credential));
                 
@@ -193,7 +190,32 @@ public class Utils {
             }
             return decryptedText;
         }
-    } 
+    }
+    
+    public String makeJSON_LTCWallet (
+            String address, 
+            String pk_encrypted, 
+            String network, 
+            String user, 
+            String walletdata_encrypted,
+            String notes) throws Exception { 
+        
+        JSONObject results_obj = new JSONObject();
+        
+        DateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy");
+        String date = dateFormat.format(new Date());
+        
+        results_obj.put("symbol", "LTC");
+        results_obj.put("address", address); 
+        results_obj.put("private_key", pk_encrypted); 
+        results_obj.put("network", network); 
+        results_obj.put("user", user);
+        results_obj.put("date_created",  date);
+        results_obj.put("wallet", walletdata_encrypted);
+        results_obj.put("notes", notes);
+        
+        return results_obj.toString();
+    }
     
     public String makeJSONFromWallet (
             String address, 
@@ -352,5 +374,5 @@ public class Utils {
         result.put("status", "200");
         result.put("data", "Database connection is verified!");
         return result;    
-    }
+    }  
 }
