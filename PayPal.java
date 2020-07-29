@@ -4,29 +4,45 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
-import java.util.Random;
-import org.json.JSONObject;
 import java.util.Iterator;
+import org.bson.Document;
+import org.json.JSONObject;
+import com.mongodb.BasicDBObject;
+import com.mongodb.MongoClient;
+import com.mongodb.MongoCredential;
+import com.mongodb.ServerAddress;
+import com.mongodb.client.MongoCollection;
+import com.mongodb.client.MongoCursor;
+import com.mongodb.client.MongoDatabase;
+import com.mongodb.client.model.Accumulators;
+import com.mongodb.client.model.Aggregates;
+import com.mongodb.client.model.Filters;
 import com.paypal.api.payments.Amount;
 import com.paypal.api.payments.Payer;
+import com.paypal.api.payments.PayerInfo;
 import com.paypal.api.payments.Payment;
 import com.paypal.api.payments.RedirectUrls;
 import com.paypal.api.payments.Transaction;
 import com.paypal.base.rest.APIContext;
 import com.paypal.base.rest.PayPalRESTException;
+import com.paypal.api.payments.Links;
 import com.squareup.okhttp.MediaType;
 import com.squareup.okhttp.OkHttpClient;
 import com.squareup.okhttp.Request;
 import com.squareup.okhttp.RequestBody;
 import com.squareup.okhttp.Response;
-import com.paypal.api.payments.Links;
 import java.nio.charset.StandardCharsets;
+
+import static com.mongodb.client.model.Filters.eq;
+
 import java.awt.Desktop;
 import java.net.URI;
 
 public class PayPal {
+    
+    boolean wallet_verification_status = true;
 
-    public String paypal_Deposit(String amount, String symbol) {
+    public String paypal_Deposit(String email, String amount, String symbol) {
 
         String value = "";		
         Settings settings = new Settings();
@@ -42,6 +58,9 @@ public class PayPal {
 
         Payer payer = new Payer();
         payer.setPaymentMethod("paypal");
+        PayerInfo pi = new PayerInfo();
+        pi.setEmail(email);
+        payer.setPayerInfo(pi);
 
         Payment payment = new Payment();
         payment.setIntent("sale");
@@ -96,7 +115,7 @@ public class PayPal {
         
         if (OS.equals("Windows 10")) {
             try {
-                Runtime.getRuntime().exec("rundll32 url.dll,FileProtocolHandler " +  value); // OK
+                Runtime.getRuntime().exec("rundll32 url.dll,FileProtocolHandler " +  value); 
             }
             catch (Exception ex)
             {
@@ -106,64 +125,81 @@ public class PayPal {
             try {
                 Desktop.getDesktop().browse(new URI(value));
             } catch (Exception ex) {
-                System.out.println("paypal_Deposit> Desktop.isDesktopSupported: " + Desktop.isDesktopSupported()); // false
+                System.out.println("paypal_Deposit> Desktop.isDesktopSupported: " + Desktop.isDesktopSupported()); 
             }
         }
         
         return value;
     }
     
-    public String paypal_Withdraw(String receiver, String amount, String symbol, String accesstoken, String sender_batch_id) throws Exception {
+    public String paypal_Withdraw(String receiver, String amount, String symbol, String accesstoken) throws Exception {
          
         Settings settings = new Settings();
+        Utils utils = new Utils();
 
-        String email_subject = "";
-        String email_message = "";
+        String email_subject = "New subject";
+        String email_message = "New email message";
         String recipient_type = "EMAIL";
-        String currency = "RUB";
-        String note = "Test sandbox withdrawal to email";
+        String note = "New note";
         String sender_item_id = "12272019_2";
+        String sender_batch_id = utils.utility_getRandomString();  
+        System.out.println("Paypal_Withdraw> sender_batch_id: " + sender_batch_id);
         
         // Alternate notification method
-        String country_code = "X";
-        String national_number = "XXX711XX49"; 
+        String country_code = "7";
+        String national_number = "9687115049"; 
         
-        String content = "{\"sender_batch_header\": { \"sender_batch_id\": " + sender_batch_id + ", \"email_subject\": \"You have a withdrawal result!\", \"email_message\": \"You have a withdrawal result! Thanks for using our service!\" }, \"items\": [ { \"recipient_type\": \"EMAIL\",  \"amount\": {  \"value\": " + amount + ", \"currency\": \"RUB\" }, \"note\": \"Test sandbox withdrawal to email\", \"sender_item_id\": \"12312019\", \"receiver\": \"sb-sxwqb793030@personal.example.com\",  \"alternate_notification_method\": { \"phone\": { \"country_code\": \"7\", \"national_number\": \"9687115049\" } } } ] }";
-        String authorization = "Bearer " + accesstoken;        
-        
+        String content = "{\"sender_batch_header\": { \"sender_batch_id\": " + sender_batch_id + ", \"email_subject\": " + "\"" + email_subject + "\"" + ", \"email_message\": "+ "\"" + email_message + "\"" + " }, \"items\": [ { \"recipient_type\": \"EMAIL\",  \"amount\": {  \"value\": " + amount + ", \"currency\": " + "\"" + symbol + "\"" + " }, \"note\": " + "\"" + note + "\"" + ", \"sender_item_id\": \"12312019\", \"receiver\": " + "\"" + receiver + "\"" + ",  \"alternate_notification_method\": { \"phone\": { \"country_code\": \"7\", \"national_number\": \"9687115049\" } } } ] }";
+        String authorization = "Bearer " + accesstoken; 
+         
         OkHttpClient client = new OkHttpClient();
         MediaType mediaType = MediaType.parse("application/json");
         RequestBody body = RequestBody.create(mediaType, content);
         Request request = new Request.Builder()
-             .url(settings.url_paypal_withdraw)
-             .method("POST", body)
-             .addHeader("Content-Type", "application/json")
-             .addHeader("Authorization", authorization)
-             .build();
-       Response response = client.newCall(request).execute();
+            .url(settings.url_paypal_withdraw)
+            .method("POST", body)
+            .addHeader("Content-Type", "application/json")
+            .addHeader("Authorization", authorization)
+            .build();
+        Response response = client.newCall(request).execute();
        
-       String raw_result = response.body().string();
-       System.out.println("paypal_Withdraw> body: " + response.toString());        
-       System.out.println("paypal_Withdraw> result: " + raw_result); 
+        String raw_result = response.body().string();
+        System.out.println("Paypal_Withdraw> body: " + response.toString());        
+        System.out.println("Paypal_Withdraw> result: " + raw_result); 
+
+        String[] values = response.toString().split(","); 
+        System.out.println("Paypal_Withdraw> array: " + Arrays.toString(values));
+        System.out.println("Paypal_Withdraw> values: " + values);
+
+        String raw_message = java.net.URLDecoder.decode(values[2], StandardCharsets.UTF_8.name());
+        System.out.println(raw_message); 
+        String[] message =raw_message.split("=");
+        String msg = message[1];
+        System.out.println("Paypal_Withdraw> Result: " + msg); 
+
+        if (msg.equals("Unauthorized"))
+            return "Token is invalid";
+        if (!msg.equals("Created"))
+            return "-1"; 
        
-       String[] values = response.toString().split(","); 
-       System.out.println("paypal_Withdraw> array: " + Arrays.toString(values));
-       System.out.println("paypal_Withdraw> values: " + values);
+       // Log results
+       String notes = "";
+       utils.logFiatWithdrawalResults(
+           symbol, 
+           Double.valueOf(amount),
+           "PayPal", 
+           settings.email_heap, 
+           receiver, 
+           raw_result,
+           notes);
        
-       String raw_message = java.net.URLDecoder.decode(values[2], StandardCharsets.UTF_8.name());
-       System.out.println(raw_message); 
-       String[] message =raw_message.split("=");
-       String msg = message[1];
-       System.out.println("Result: " + msg); 
-       
-       if (msg.equals("Unauthorized"))
-           return "Token is invalid";
-       if (!msg.equals("Created"))
-           return "-1";  // Something went wrong!      
-    
+       // Update customer balance
+       updateFiatBalance(receiver, symbol, Double.valueOf(amount),  "withdrawal" /* deposit or withdrawal */);
+  
        return "Success";
-    }
+    }	
     
+    // Heap Balance
     public String paypal_getBalance(String currency) throws Exception {
         
         Settings settings = new Settings();
@@ -211,7 +247,7 @@ public class PayPal {
                 index = 4;
                 break;
             default:
-                index = -1; // not supported
+                index = -1;
         }
             
         String raw_balance = java.net.URLDecoder.decode(values[index], StandardCharsets.UTF_8.name());
@@ -223,10 +259,90 @@ public class PayPal {
         return result;
     }
     
+    public String paypal_getCustomerBalance(String email, String currency) throws Exception {
+        
+        Settings settings = new Settings();        
+        String user = "db_operator";
+        String database = "wallets";
+        String db_collection = "";
+        
+        switch (currency)
+        {
+            case ("RUB"):
+                db_collection = "RUB (sandbox)";
+                break;                
+            case ("EUR"):
+                db_collection = "EUR (sandbox)";
+                break; 
+            case ("HKD"):
+                db_collection = "HKD (sandbox)";
+                break; 
+            case ("ILS"):
+                db_collection = "ILS (sandbox)";
+                break; 
+            case ("USD"):
+                db_collection = "USD (sandbox)";
+                break;
+        }
+        
+        MongoCredential credential = MongoCredential.createCredential(user, database, settings.password.toCharArray());
+        MongoClient mongoClient = new MongoClient(new ServerAddress(Settings.mongodb_host, settings.mongodb_port),
+                Arrays.asList(credential));
+             
+        MongoDatabase db = mongoClient.getDatabase(database);
+        MongoCollection<Document> collection = db.getCollection(db_collection);        
+
+        Document document = collection.find(eq("email", email)).first();
+        if (document == null) {             
+            System.out.println("GetCustomerBalance> Nothing was found in DB");
+            mongoClient.close();
+            return "-1";
+        }; 
+        mongoClient.close();
+         
+        JSONObject obj = new JSONObject(document.toJson());       
+        System.out.println("GetCustomerBalance> Balance: " + obj.getDouble("balance"));  // OK, Balance: 243.89
+        String balance = String.valueOf(obj.getDouble("balance"));
+        return balance;
+    }
+    
+    public String paypal_getCustomerBalanceReserved(String email, String currency) throws Exception {        
+        Settings settings = new Settings();
+        
+        String user = "db_operator";
+        String database = "logs";
+        String db_collection = "sandbox_fiat_deposits";
+
+        MongoCredential credential = MongoCredential.createCredential(user, database, settings.password.toCharArray());
+        MongoClient mongoClient = new MongoClient(new ServerAddress(settings.mongodb_host, settings.mongodb_port),
+            Arrays.asList(credential));
+             
+        MongoDatabase db = mongoClient.getDatabase(database);
+        MongoCollection<Document> collection = db.getCollection(db_collection);
+               
+        Document document =  collection.aggregate(
+            Arrays.asList(
+                Aggregates.match(Filters.eq("currency", currency)),
+                Aggregates.match(Filters.eq("emailfrom", email)),
+                Aggregates.group("$emailfrom", Accumulators.sum("total_deposits", "$amount"), Accumulators.sum("total_fees", "$fee"))
+            )).first(); 
+        mongoClient.close();
+        
+        if (document == null) { 
+            System.out.println("Nothing was found in DB");
+            return "-1";
+        } else { 
+            System.out.println("A record was found in the DB!"); 
+            JSONObject obj = new JSONObject(document.toJson());
+            System.out.println(obj.toString()); 
+            return obj.toString();
+        }
+    }
+    
     public String utility_getAccessToken(String password)  throws Exception {
             
         String result = null;
-        Settings settings = new Settings();
+        Settings settings = new Settings();  
         
         // Validate password
         String true_password = settings.paypal_p2p_password;
@@ -264,27 +380,211 @@ public class PayPal {
        System.out.println("utility_getAccessToken> scope: " + obj.getString("scope")); 
        
        return result ;   
+    }    
+    
+    protected void updateFiatBalance(
+            String email, 
+            String currency, 
+            double balance_update_amount, 
+            String type /* deposit or withdrawal */) throws Exception { 
+            
+        Settings settings = new Settings();
+        String user = "db_operator";
+        String db_name = "wallets";
+        String db_collection = "";
+        double current_balance = 0.0;
+         
+        switch (currency)
+        {
+            case ("RUB"):
+                db_collection = "RUB (sandbox)";
+                break;                
+            case ("EUR"):
+                db_collection = "EUR (sandbox)";
+                break; 
+            case ("HKD"):
+                db_collection = "HKD (sandbox)";
+                break; 
+            case ("ILS"):
+                db_collection = "ILS (sandbox)";
+                break; 
+            case ("USD"):
+                db_collection = "USD (sandbox)";
+                break;
+        }        
+        
+        MongoCredential credential = MongoCredential.createCredential(
+            user, db_name, 
+            settings.password.toCharArray());
+        MongoClient mongoClient = new MongoClient(new ServerAddress(
+            Settings.mongodb_host, 
+            settings.mongodb_port),
+            Arrays.asList(credential));
+             
+        MongoDatabase db = mongoClient.getDatabase(db_name);
+        MongoCollection<Document> collection = db.getCollection(db_collection);
+        
+        Document document = collection.find(eq("email", email)).first();
+         
+        if (document == null) { 
+            System.out.println("UpdateFiatBalance> Nothing was found in DB");
+        } else { 
+            System.out.println("UpdateFiatBalance> A record was found in the DB!"); 
+            JSONObject obj = new JSONObject(document.toJson());
+            System.out.println(obj.toString()); 
+            current_balance = obj.getDouble("balance");
+            System.out.println("UpdateFiatBalance> Current balance: " + current_balance);  
+            
+            // Update balance
+            BasicDBObject query = new BasicDBObject(); // query object
+            query.put("email", email);
+            BasicDBObject data = new BasicDBObject(); // update object
+            data.put("balance", type=="deposit" ? current_balance + balance_update_amount : current_balance - balance_update_amount); 
+            System.out.println("UpdateFiatBalance> New balance: " + (current_balance - balance_update_amount));  
+            BasicDBObject command = new BasicDBObject();
+            command.put("$set", data);
+            collection.updateOne(query, command);            
+        }; 
+        
+        mongoClient.close();
     }
     
-    // Reserved, not used at the moment
-    public static String utility_getRandomString() {
+    public boolean verifyAllPayPalWallets() throws Exception { 
         
-        int leftLimit = 97; 
-        int rightLimit = 122; 
-        int targetStringLength = 10;
-        Random random = new Random();
-        StringBuilder buffer = new StringBuilder(targetStringLength);
-        for (int i = 0; i < targetStringLength; i++) {
-            int randomLimitedInt = leftLimit + (int) 
-              (random.nextFloat() * (rightLimit - leftLimit + 1));
-            buffer.append((char) randomLimitedInt);
+        Settings settings = new Settings();
+        wallet_verification_status = true;
+        String user = "db_operator";
+        String db_name = "wallets";
+        int NUMBEROFFIATS = 5;
+        String[] fiats = {"RUB", "EUR", "USD", "HKD", "ILS"};
+        String[] wallets = {"RUB (sandbox)", "EUR (sandbox)", "USD (sandbox)", "HKD (sandbox)", "ILS (sandbox)"};
+        
+        MongoCredential credential = MongoCredential.createCredential(user, db_name, settings.password.toCharArray());
+        MongoClient mongoClient = new MongoClient(new ServerAddress(settings.mongodb_host, settings.mongodb_port),
+                Arrays.asList(credential));
+             
+        MongoDatabase db = mongoClient.getDatabase(db_name);
+        
+        long startTime = System.currentTimeMillis();
+        for (int i=0; i < NUMBEROFFIATS; i++) {
+            MongoCollection<Document> collection = db.getCollection(wallets[i]);            
+            MongoCursor<Document> cursor = collection.find().iterator(); 
+            while (cursor.hasNext()) {
+                Document doc = cursor.next();
+                System.out.println("VerifyAllPayPalWallets> Currency: " + fiats[i] + ", Email: " + doc.getString("email") + ", Balance: " + doc.get("balance"));
+                verifyCustomerBalance(doc.getString("email"), fiats[i]);
+            }          
         }
-        String generatedString = buffer.toString();     
-        System.out.println(generatedString); 
-        
-        return generatedString;
+        mongoClient.close();
+        long stopTime = System.currentTimeMillis();
+        long elapsedTime = stopTime - startTime;
+        System.out.println("VerifyAllPayPalWallets> Time (millisec): " + elapsedTime + ", Time (sec): " + ((double) elapsedTime)/1000 + ", Time (min): " + ((double) elapsedTime)/1000/60);
+         
+        return wallet_verification_status;
     }
+    
+    public void verifyCustomerBalance(String email, String currency) throws Exception { 
+        Settings settings = new Settings();
+        Utils utils = new Utils();
+        
+        String user = "db_operator";
+        String database = "logs";
+        String db_collection = "sandbox_fiat_deposits";
+        
+        double total_deposits = 0;
+        double total_deposit_fees = 0;
+        double total_withdrawals = 0;
+        double expected_balance = 0;
+        double balance = 0;
+
+        MongoCredential credential = MongoCredential.createCredential(user, database, settings.password.toCharArray());
+        MongoClient mongoClient = new MongoClient(new ServerAddress(settings.mongodb_host, settings.mongodb_port),
+            Arrays.asList(credential));
+             
+        MongoDatabase db = mongoClient.getDatabase(database);
+        MongoCollection<Document> collection = db.getCollection(db_collection);
+               
+        Document document =  collection.aggregate(
+            Arrays.asList(
+                Aggregates.match(Filters.eq("currency", currency)),
+                Aggregates.match(Filters.eq("emailfrom", email)),
+                Aggregates.group("$emailfrom", Accumulators.sum("total_deposits", "$amount"), Accumulators.sum("total_fees", "$fee"))
+            )).first(); 
+        
+        if (document == null) { 
+            System.out.println("VerifyCustomerBalance> Nothing was found in DB: "  +database + ", Collection: " + db_collection);
+         } else { 
+            System.out.println("VerifyCustomerBalance> A record was found in the DB!"); 
+            JSONObject obj = new JSONObject(document.toJson());
+            System.out.println("VerifyCustomerBalance> " + obj.toString());            
+             total_deposits = obj.getDouble("total_deposits");
+            total_deposit_fees = obj.getDouble("total_fees");
+        }
+        
+        db_collection = "sandbox_fiat_withdrawals";
+        collection = db.getCollection(db_collection);
+                
+        document =  collection.aggregate(
+                Arrays.asList(
+                    Aggregates.match(Filters.eq("currency", currency)),
+                    Aggregates.match(Filters.eq("emailto", email)),
+                    Aggregates.group("$emailto", Accumulators.sum("total_withdrawals", "$amount"))
+                 )).first(); 
+        mongoClient.close();
+                    
+        if (document == null) { 
+            System.out.println("VerifyCustomerBalance> Nothing was found in DB: "  +database + ", Collection: " + db_collection);
+        } else { 
+            System.out.println("VerifyCustomerBalance> A record was found in the DB!"); 
+            JSONObject obj = new JSONObject(document.toJson());
+            System.out.println(obj.toString()); 
+            total_withdrawals = obj.getDouble("total_withdrawals");
+        }
+        
+        expected_balance = total_deposits -  total_deposit_fees - total_withdrawals;
+        System.out.println("VerifyCustomerBalance> Expected balance: " + expected_balance +  " " + currency); // Expected balance: 243.89 RUB
+        
+        database = "wallets";
+        switch (currency)
+        {
+            case ("RUB"):
+                db_collection = "RUB (sandbox)";
+                break;                
+            case ("EUR"):
+                db_collection = "EUR (sandbox)";
+                break; 
+            case ("HKD"):
+                db_collection = "HKD (sandbox)";
+                break; 
+            case ("ILS"):
+                db_collection = "ILS (sandbox)";
+                break; 
+            case ("USD"):
+                db_collection = "USD (sandbox)";
+                break;
+        }
+        credential = MongoCredential.createCredential(user, database, settings.password.toCharArray());
+        mongoClient = new MongoClient(new ServerAddress(settings.mongodb_host, settings.mongodb_port),
+            Arrays.asList(credential));
+        db = mongoClient.getDatabase(database);
+        collection = db.getCollection(db_collection);
+        document = collection.find(eq("email", email)).first();
+        if (document == null) {             
+            System.out.println("VerifyCustomerBalance> Nothing was found in DB: "  +database + ", Collection: " + db_collection);
+        } else { 
+            System.out.println("VerifyCustomerBalance> A record was found in the DB!"); 
+            JSONObject obj = new JSONObject(document.toJson());
+            System.out.println(obj.toString()); 
+            balance = obj.getDouble("balance");
+            System.out.println("VerifyCustomerBalance> Balance: " + balance +  " " + currency); // OK: Balance: 243.89 RUB
+        } 
+        mongoClient.close();        
+        
+        if (utils.round(expected_balance, 2) != utils.round(balance, 2)) {
+            System.out.println("VerifyCustomerBalance> Error is found! The balance for the " + 
+                currency + " account of the customer " + email + " is not correct! Expected balance: " + 
+                expected_balance +  " " + currency + ", Balance: " + balance + " " + currency);
+            wallet_verification_status = false;
+        }
+    }        
 }
-
-
-

@@ -1,20 +1,14 @@
 package com.bezalel.trading_api;
 
 import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiModelProperty;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
-import io.swagger.annotations.SwaggerDefinition;
-import io.swagger.annotations.Tag;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
-import java.math.BigInteger;
 
 @RestController
 @RequestMapping("/v1")
@@ -40,33 +34,53 @@ public class Swagger_PayPal {
         } else {
             return new ResponseEntity<>(result, HttpStatus.OK);
         } 
-    }    
+    }
+    
+    @ApiOperation(value="Get customer balance for a currency", tags="PayPal sandbox API")     
+    @RequestMapping(path="/PayPal/sandbox/GetCustomerBalance/{email}/{symbol}", method = RequestMethod.GET)    
+    public ResponseEntity<String> GetCustomerBalance(
+            @PathVariable @ApiParam(defaultValue = "sb-qrqup2693506@personal.example.com") String email,
+            @PathVariable @ApiParam(defaultValue = "RUB") String symbol) throws Exception {
+        
+        String result = null;
+        
+        if (!symbol.equals("RUB") && !symbol.equals("EUR") && 
+                !symbol.equals("HKD") && !symbol.equals("USD") && !symbol.equals("ILS"))
+            return new ResponseEntity<>("The " + symbol + " currency is not supported!", HttpStatus.NOT_FOUND);
+                
+        PayPal pp = new PayPal();
+        result = pp.paypal_getCustomerBalance(email, symbol);
+        
+        if (result.equals("-1")) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND); 
+        } else {
+            return new ResponseEntity<>(result, HttpStatus.OK);
+        } 
+    }
     
     @ApiOperation(value="Make fiat deposit", tags="PayPal sandbox API")	   
-    @RequestMapping(path="/PayPal/sandbox/Deposit/{amount}/{symbol}", method = RequestMethod.POST)    
-    public String Deposit(String amount, String symbol) throws Exception {
+    @RequestMapping(path="/PayPal/sandbox/Deposit/{email}/{amount}/{symbol}", method = RequestMethod.POST)    
+    public String Deposit(String email, String amount, String symbol) throws Exception {
          String result = "";
         
             PayPal pp = new PayPal();
-        result = pp.paypal_Deposit(amount, symbol);
+        result = pp.paypal_Deposit(email, amount, symbol);
 
         return result; 
     } 
     
     @ApiOperation(value="Withdraw from an account", tags="PayPal sandbox API")    
-    @RequestMapping(path="/PayPal/sandbox/Withdraw/{receiver}/{amount}/{symbol}/{accesstoken}/{batch_id}", method = RequestMethod.POST)    
+    @RequestMapping(path="/PayPal/sandbox/Withdraw/{receiver}/{amount}/{symbol}/{accesstoken}", method = RequestMethod.POST)    
     public ResponseEntity<String> Withdraw(
-            @PathVariable @ApiParam(defaultValue = "sb-sxwqbXXXXXX@personal.example.com") String receiver, 
+            @PathVariable @ApiParam(defaultValue = "sb-sxwqb793030@personal.example.com") String receiver, 
             @PathVariable @ApiParam(defaultValue = "101.00") String amount, 
             @PathVariable @ApiParam(defaultValue = "RUB") String symbol, 
-            @PathVariable @ApiParam(defaultValue = "A21AAGw93qAhuSZap4O6EowgfnE0L0-xxq0HiA5vnurohenQi18ZNC_lHAQstaQNnutc5FaEyRLSbqrQN0g7tRqL1CZKmEV9Q") String accesstoken,
-            @PathVariable @ApiParam(defaultValue = "112") String batch_id) 
-                 throws Exception {
+            @PathVariable @ApiParam(defaultValue = "A21AAHOKigllttuhG9jqUCbk2o22WMnwBUFrXEKBpajA9ZyAkTiu1swZrquP2rCjKNFHYDww6Hn7C7WxW1dlb_DBR2FCsxiJg") String accesstoken) throws Exception {
         
         String result = null;
         
         PayPal pp = new PayPal();
-        result = pp.paypal_Withdraw(receiver, amount, symbol, accesstoken, batch_id);
+        result = pp.paypal_Withdraw(receiver, amount, symbol, accesstoken);
         
         if (result.equals("Token is invalid")) {
             return new ResponseEntity<>("Token is invalid!", HttpStatus.UNAUTHORIZED);
@@ -94,11 +108,18 @@ public class Swagger_PayPal {
             return new ResponseEntity<>(result, HttpStatus.OK);
         }        
     } 
+    
+    @RequestMapping(path="/PayPal/sandbox/Admin/VerifyAllWallets", method = RequestMethod.GET) 
+    @ApiOperation(value="Verify all PayPay wallets of registered customers", tags="PayPal sandbox API")   
+    public ResponseEntity<String> verifyAllPayPalWallets() throws Exception {        
+            
+        PayPal pp = new PayPal();
+        boolean result = pp.verifyAllPayPalWallets();
+        
+        if (!result) {
+            return new ResponseEntity<>("Errors were found!", HttpStatus.FOUND); 
+        } else {
+            return new ResponseEntity<>("No errors found!", HttpStatus.OK);
+        }        
+    } 
  }
-
-
-
-
-
-
-
