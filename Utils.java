@@ -87,8 +87,8 @@ public class Utils {
             String payment_id,
             String token, 
             String tx_result,
-            String notes) throws Exception {
-         
+            String notes) throws Exception { 
+        
         Settings settings = new Settings();
         String db_name = "logs";
         String collection = "sandbox_fiat_deposits";
@@ -106,7 +106,7 @@ public class Utils {
         results_obj.put("payment_id", payment_id); 
         results_obj.put("token", token);
         results_obj.put("tx_result", tx_result); 
-        results_obj.put("notes", notes);    
+        results_obj.put("notes", notes);   
         
         // Insert TX results into MongoDB        
         try {
@@ -151,8 +151,8 @@ public class Utils {
         results_obj.put("emailfrom", emailfrom);
         results_obj.put("emailto", emailto);
         results_obj.put("tx_result", tx_result); 
-        results_obj.put("notes", notes);  
-        
+        results_obj.put("notes", notes); 
+         
         // Insert TX results into MongoDB        
         try {
             MongoCredential credential = MongoCredential.createCredential(
@@ -377,6 +377,33 @@ public class Utils {
         return results_obj.toString();
     }
     
+    public String makeJSON_ETHBlockcypherWallet (
+            String address, 
+            String pk_encrypted, 
+            String network, 
+            String user, 
+            String walletdata_encrypted,
+            String provider,
+            String notes) throws Exception { 
+        
+        JSONObject results_obj = new JSONObject();
+        
+        DateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy");
+        String date = dateFormat.format(new Date());
+        
+        results_obj.put("symbol", "ETH");
+        results_obj.put("address", address); 
+        results_obj.put("private_key", pk_encrypted); 
+        results_obj.put("network", network); 
+        results_obj.put("user", user);
+        results_obj.put("date_created", date);
+        results_obj.put("wallet", walletdata_encrypted);
+        results_obj.put("provider", provider);
+        results_obj.put("notes", notes);
+        
+        return results_obj.toString();
+    } 
+    
     public String makeJSON_WavesWallet (
             String address, 
             String seed_encrypted, 
@@ -400,8 +427,8 @@ public class Utils {
         results_obj.put("notes", notes);
         
         return results_obj.toString();
-    }    
-
+    }
+    
     public String readLine(String ffn) throws Exception {
         File file = new File(ffn); 
         BufferedReader br = new BufferedReader(new FileReader(file)); 
@@ -520,8 +547,8 @@ public class Utils {
         System.out.println("GetRandomString> " + generatedString); 
         
         return generatedString;
-    }      
-
+    }  
+     
     public double round(double value, int places) {
         if (places < 0) throw new IllegalArgumentException();
 
