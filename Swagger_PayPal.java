@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -36,10 +37,10 @@ public class Swagger_PayPal {
         } 
     }
     
-    @ApiOperation(value="Get customer balance for a currency", tags="PayPal sandbox API")     
-    @RequestMapping(path="/PayPal/sandbox/GetCustomerBalance/{email}/{symbol}", method = RequestMethod.GET)    
+    @ApiOperation(value="Get customer balance for a currency", tags="PayPal API")     
+    @RequestMapping(path="/PayPal/GetCustomerBalance/{email}/{symbol}", method = RequestMethod.GET)    
     public ResponseEntity<String> GetCustomerBalance(
-            @PathVariable @ApiParam(defaultValue = "sb-qrqup2693506@personal.example.com") String email,
+            @PathVariable @ApiParam(defaultValue = "bezalel4245@gmail.com") String email,
             @PathVariable @ApiParam(defaultValue = "RUB") String symbol) throws Exception {
         
         String result = null;
@@ -58,9 +59,34 @@ public class Swagger_PayPal {
         } 
     }
     
+    @ApiOperation(value="Get customer sandbox balance for a currency", tags="PayPal sandbox API")     
+    @RequestMapping(path="/PayPal/sandbox/GetCustomerBalance/{email}/{symbol}", method = RequestMethod.GET)    
+    public ResponseEntity<String> GetCustomerSandboxBalance(
+            @PathVariable @ApiParam(defaultValue = "sb-qrqup2693506@personal.example.com") String email,
+            @PathVariable @ApiParam(defaultValue = "RUB") String symbol) throws Exception {
+        
+        String result = null;
+        
+        if (!symbol.equals("RUB") && !symbol.equals("EUR") && 
+                !symbol.equals("HKD") && !symbol.equals("USD") && !symbol.equals("ILS"))
+            return new ResponseEntity<>("The " + symbol + " currency is not supported!", HttpStatus.NOT_FOUND);
+                
+        PayPal pp = new PayPal();
+        result = pp.paypal_getCustomerSandboxBalance(email, symbol);
+        
+        if (result.equals("-1")) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND); 
+        } else {
+            return new ResponseEntity<>(result, HttpStatus.OK);
+        } 
+    }
+    
     @ApiOperation(value="Make fiat deposit", tags="PayPal sandbox API")	   
-    @RequestMapping(path="/PayPal/sandbox/Deposit/{email}/{amount}/{symbol}", method = RequestMethod.POST)    
-    public String Deposit(String email, String amount, String symbol) throws Exception {
+    @RequestMapping(path="/PayPal/sandbox/Deposit/{email}/{amount}/{symbol}", method = RequestMethod.GET)
+    public String Deposit(
+            @PathVariable String email, 
+            @PathVariable String amount, 
+            @PathVariable String symbol) throws Exception {
          String result = "";
         
             PayPal pp = new PayPal();
@@ -70,12 +96,12 @@ public class Swagger_PayPal {
     } 
     
     @ApiOperation(value="Withdraw from an account", tags="PayPal sandbox API")    
-    @RequestMapping(path="/PayPal/sandbox/Withdraw/{receiver}/{amount}/{symbol}/{accesstoken}", method = RequestMethod.POST)    
+    @RequestMapping(path="/PayPal/sandbox/Withdraw/", method = RequestMethod.POST)
     public ResponseEntity<String> Withdraw(
-            @PathVariable @ApiParam(defaultValue = "sb-sxwqb793030@personal.example.com") String receiver, 
-            @PathVariable @ApiParam(defaultValue = "101.00") String amount, 
-            @PathVariable @ApiParam(defaultValue = "RUB") String symbol, 
-            @PathVariable @ApiParam(defaultValue = "A21AAHOKigllttuhG9jqUCbk2o22WMnwBUFrXEKBpajA9ZyAkTiu1swZrquP2rCjKNFHYDww6Hn7C7WxW1dlb_DBR2FCsxiJg") String accesstoken) throws Exception {
+            @RequestParam(value="receiver", required=true) @ApiParam(defaultValue = "sb-sxwqb793030@personal.example.com") String receiver, 
+            @RequestParam(value="amount", required=true) @ApiParam(defaultValue = "101.00") String amount, 
+            @RequestParam(value="symbol", required=true) @ApiParam(defaultValue = "RUB") String symbol, 
+            @RequestParam(value="accesstoken", required=true) @ApiParam(defaultValue = "A21AAHOKigllttuhG9jqUCbk2o22WMnwBUFrXEKBpajA9ZyAkTiu1swZrquP2rCjKNFHYDww6Hn7C7WxW1dlb_DBR2FCsxiJg") String accesstoken) throws Exception {
         
         String result = null;
         
