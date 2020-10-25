@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import java.math.BigInteger;
 
@@ -21,32 +22,32 @@ import java.math.BigInteger;
 @Api(value = "Litecoin Endpoints", description = "Litecoin API") 
 public class Swagger_Litecoin {
 
-    @RequestMapping(path="/LTC/LastBlock/", method = RequestMethod.GET)
+    @RequestMapping(path="/Litecoin/LastBlock/", method = RequestMethod.GET)
     @ApiOperation(value="Get last block", tags="Litecoin API")
     public long getLastBlock() throws Exception {
-        long result = 0;
+         long result = 0;
         
-        Litecoin_Blockcypher litecoin = new Litecoin_Blockcypher();
+         Litecoin_Blockcypher litecoin = new Litecoin_Blockcypher();
         result = litecoin.getLastBlock();
  
         return result; 
     }
     
-    @RequestMapping(path="/LTC/IsAddressValid/{address}", method = RequestMethod.GET)
+    @RequestMapping(path="/Litecoin/IsAddressValid/{address}", method = RequestMethod.GET)
     @ApiOperation(value="Check if address is valid", tags="Litecoin API")
     public boolean IsAddressValid(@PathVariable String address) throws Exception {  
         Litecoin_Blockcypher litecoin = new Litecoin_Blockcypher(); 
         return litecoin.validateAddress(address); 
     }
     
-    @RequestMapping(path="/LTC/GetNewAddress/{email}/{notes}", method = RequestMethod.GET)
+    @RequestMapping(path="/Litecoin/GetNewAddress/{email}/{notes}", method = RequestMethod.GET)
     @ApiOperation(value="Create new LTC address", tags="Litecoin API")
     public ResponseEntity<String> getNewAddress(   
             @PathVariable String email,
             @PathVariable String notes) throws Exception {   	
             
-        Litecoin_Blockcypher litecoin = new Litecoin_Blockcypher();
-        org.json.JSONObject result  = litecoin.getNewAddress(email, notes);
+         Litecoin_Blockcypher litecoin = new Litecoin_Blockcypher();
+         org.json.JSONObject result  = litecoin.getNewAddress(email, notes);
         
         // Validate results
         if (result.get("status").equals("-1")) {          
@@ -56,36 +57,36 @@ public class Swagger_Litecoin {
         }
     }
      
-    @RequestMapping(path="/LTC/Balance/{address}", method = RequestMethod.GET)
+    @RequestMapping(path="/Litecoin/Balance/{address}", method = RequestMethod.GET)
     @ApiOperation(value="Get balance", tags="Litecoin API")
     public long getBalance(@PathVariable String address) throws Exception {  
         
-        long result = 0;    	
+         long result = 0;    	
             
-        Litecoin_Blockcypher litecoin = new Litecoin_Blockcypher();
+         Litecoin_Blockcypher litecoin = new Litecoin_Blockcypher();
         result = litecoin.getBalance(address);
  
         return result; 
     }
    
-    @RequestMapping(path="/LTC/LTCRate/", method = RequestMethod.GET)
+    @RequestMapping(path="/Litecoin/LTCRate/", method = RequestMethod.GET)
     @ApiOperation(value="Get LTC rate in USD", tags="Litecoin API")
     public double getLTCRate() throws Exception {
-        double result = 0;
+          double result = 0;
          
-        Litecoin_Blockcypher litecoin = new Litecoin_Blockcypher();
+          Litecoin_Blockcypher litecoin = new Litecoin_Blockcypher();
         result = litecoin.getLTCRate();
   
-        return result; 
-    }
+         return result; 
+     }
     
-    @RequestMapping(path="/LTC/SendFromAddress/{addressfrom}/{addressto}/{amount}/{password}", method = RequestMethod.POST)
+    @RequestMapping(path="/Litecoin/SendFromAddress/", method = RequestMethod.POST)
     @ApiOperation(value="Send LTC", tags="Litecoin API")
     public ResponseEntity<String> sendLTC(
-            @PathVariable @ApiParam(defaultValue = "LPR3HtYwfguAtUnzn6vYPirD6G9HHdnLz9") String addressfrom, 
-            @PathVariable @ApiParam(defaultValue = "LVgyPg5DyXhHF3VwwRy6VnmFdBuVf39LKL") String addressto, 
-            @PathVariable @ApiParam(defaultValue = "0.00001") double amount,
-            @PathVariable String password) throws Exception {  
+            @RequestParam(value="addressfrom", required=true) @ApiParam(defaultValue = "LPR3HtYwfguAtUnzn6vYPirD6G9HHdnLz9") String addressfrom, 
+            @RequestParam(value="addressto", required=true) @ApiParam(defaultValue = "LVgyPg5DyXhHF3VwwRy6VnmFdBuVf39LKL") String addressto,  
+            @RequestParam(value="amount", required=true) @ApiParam(defaultValue = "0.00001") double amount,
+            @RequestParam(value="password", required=true)  String password) throws Exception {  
     
         // Validate password
         Settings settings = new Settings();
