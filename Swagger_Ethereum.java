@@ -3,15 +3,14 @@ package com.bezalel.trading_api;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
-
 import org.json.JSONObject;
-//import org.codehaus.jettison.json.JSONObject;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import java.math.BigInteger;
 
@@ -147,13 +146,13 @@ public class Swagger_Ethereum {
         }
     }
     
-    @RequestMapping(path="/Ethereum/Blockcypher/SendFromAddress/{addressfrom}/{addressto}/{amount}/{password}", method = RequestMethod.POST)
+    @RequestMapping(path="/Ethereum/Blockcypher/SendFromAddress/", method = RequestMethod.POST)
     @ApiOperation(value="Send ETH", tags="Ethereum API")
     public ResponseEntity<String> sendETC(
-            @PathVariable @ApiParam(defaultValue = "383b3596d3d0aea8dde14c0c4462ffffd3c25a81") String addressfrom, 
-            @PathVariable @ApiParam(defaultValue = "3fc7e949eb925fb22d729cd035a7b48373901b96") String addressto, 
-            @PathVariable @ApiParam(defaultValue = "0.0001") double amount,
-            @PathVariable String password) throws Exception {  
+          @RequestParam(value="addressfrom", required=true) @ApiParam(defaultValue = "8b085c43ff55c042fb731abafa14865d6ca696fc") String addressfrom, 
+          @RequestParam(value="addressto", required=true) @ApiParam(defaultValue = "383b3596d3d0aea8dde14c0c4462ffffd3c25a81") String addressto, 
+          @RequestParam(value="amount", required=true) @ApiParam(defaultValue = "0.0001") double amount,
+          @RequestParam(value="password", required=true) String password) throws Exception {      
     
         // Validate password
         Settings settings = new Settings();
