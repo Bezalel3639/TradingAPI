@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @CrossOrigin(allowCredentials = "true", origins = "*", allowedHeaders = "*", methods = {RequestMethod.GET, RequestMethod.POST})
@@ -18,24 +19,24 @@ import org.springframework.web.bind.annotation.RestController;
 @Api(value = "Waves Endpoints", description = "Waves API")
 public class Swagger_Waves {
 
-	@RequestMapping(path="/Waves/LastBlock/", method = RequestMethod.GET)
+    @RequestMapping(path="/Waves/LastBlock/", method = RequestMethod.GET)
     @ApiOperation(value="Get last block", tags="Waves API")   
     public int getLastBlock() throws Exception {
-    	
-     	Waves waves = new  Waves();
+        
+         Waves waves = new  Waves();
         int result = waves.getLastBlock();
 
-    	return result; 
+        return result; 
     }	
-	
+    
     @RequestMapping(path="/Waves/Balance/{address}", method = RequestMethod.GET)
-	@ApiOperation(value="Get balance", tags="Waves API")   
+    @ApiOperation(value="Get balance", tags="Waves API")   
     public long getBalance(@PathVariable @ApiParam(defaultValue = "3PCSuxn6F4pnLe4X9THYPopWhaqh86jJB6B") String address) throws Exception { 
-    	
-    	Waves waves = new  Waves();
-    	long result = waves.getBalance(address);
+        
+        Waves waves = new  Waves();
+        long result = waves.getBalance(address);
  
-    	return result; 
+        return result; 
     }
     
     @RequestMapping(path="/Waves/IsAddressValid/{address}", method = RequestMethod.GET)
@@ -47,11 +48,11 @@ public class Swagger_Waves {
     }
     
     @RequestMapping(path="/Waves/WavesRate/", method = RequestMethod.GET)
-  	@ApiOperation(value="Get Waves rate in USD", tags="Waves API")
+      @ApiOperation(value="Get Waves rate in USD", tags="Waves API")
     public double getWavesRate() throws Exception {    	
-    	Waves waves = new  Waves();
-      	double result = waves.getWavesRate(); 
-      	return result;    
+        Waves waves = new  Waves();
+          double result = waves.getWavesRate(); 
+          return result;    
     } 
     
     @RequestMapping(path="/Waves/GetNewAddress/{email}/{notes}", method = RequestMethod.GET)
@@ -71,13 +72,13 @@ public class Swagger_Waves {
         }
     }
     
-    @RequestMapping(path="/Waves/SendFromAddress/{addressfrom}/{addressto}/{amount}/{password}", method = RequestMethod.POST)
+    @RequestMapping(path="/Waves/SendFromAddress/", method = RequestMethod.POST)
     @ApiOperation(value="Send WAVES", tags="Waves API")
     public ResponseEntity<String> sendWAVESfromAddress(
-            @PathVariable @ApiParam(defaultValue = "3PNKLfFSYFyXHRiqMHz1wVwHDiVBVey5viL") String addressfrom, 
-            @PathVariable @ApiParam(defaultValue = "3PDKC26V2sdxGtvnqmkgTwdwT6zeSB72UqK") String addressto, 
-            @PathVariable @ApiParam(defaultValue = "0.001") double amount,
-            @PathVariable String password) throws Exception { 
+            @RequestParam(value="addressfrom", required=true) @ApiParam(defaultValue = "3PNKLfFSYFyXHRiqMHz1wVwHDiVBVey5viL") String addressfrom, 
+            @RequestParam(value="addressto", required=true) @ApiParam(defaultValue = "3PDKC26V2sdxGtvnqmkgTwdwT6zeSB72UqK") String addressto, 
+            @RequestParam(value="amount", required=true) @ApiParam(defaultValue = "0.001") double amount,
+            @RequestParam(value="password", required=true) String password) throws Exception { 
 
         // Validate password
         Settings settings = new Settings();
