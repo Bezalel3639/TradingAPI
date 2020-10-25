@@ -1,10 +1,7 @@
 package com.bezalel.trading_api;
 
 import static com.mongodb.client.model.Filters.eq;
-
 import java.io.IOException;
-import java.io.PrintWriter;
-import java.util.Arrays; 
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
@@ -22,6 +19,8 @@ import com.mongodb.client.MongoDatabase;
 import com.paypal.api.payments.Payment;
 import com.paypal.api.payments.PaymentExecution;
 import com.paypal.base.rest.APIContext;
+import java.io.PrintWriter;
+import java.util.Arrays; 
 
 @WebServlet("/PayPal_Servlet")
 public class PayPal_Servlet extends HttpServlet {
@@ -37,33 +36,37 @@ public class PayPal_Servlet extends HttpServlet {
         Settings settings = new Settings();
         Utils utils = new Utils();
 
-        PrintWriter out = response.getWriter();	
+        PrintWriter out = response.getWriter();     
+        
         String paymentId = request.getParameter("paymentId");
+        out.println("DoGet> paymentId: " + paymentId);
         String token = request.getParameter("token");
+        out.println("DoGet> token: " + token);
         String PayerID = request.getParameter("PayerID");
+        out.println("DoGet> PayerID: " + PayerID);
         out.close();
         
         if (paymentId != null && PayerID != null) {
             System.out.println("DoGet> The arguments are valid!");
             
-            APIContext apiContext = null;			
+            APIContext apiContext = null;           
             try {
-                apiContext = new APIContext(settings.clientId, settings.clientSecret, "sandbox");
+                apiContext = new APIContext(settings.live_clientId, settings.live_clientSecret, "live");
                 System.out.println("DoGet> Servlet access token: " + apiContext.fetchAccessToken());
             }
             catch (Exception ex) {
-                System.out.println("DoGet> APIContext error");	
+                System.out.println("DoGet> APIContext error");  
             }
             
             Payment payment = new Payment();
             payment.setId(paymentId);
     
             PaymentExecution paymentExecution = new PaymentExecution();
-            paymentExecution.setPayerId(PayerID);    	
+            paymentExecution.setPayerId(PayerID);       
             
             try {
                 Payment createdPayment = payment.execute(apiContext, paymentExecution);
-                System.out.println("DoGet> payment.execute");	
+                System.out.println("DoGet> payment.execute");   
                 System.out.println("DoGet> createdPayment: " + createdPayment);
                 
                 JSONObject obj = new JSONObject(createdPayment.toJSON());
@@ -86,28 +89,28 @@ public class PayPal_Servlet extends HttpServlet {
                 JSONObject obj_sale = array_related_resources.getJSONObject(0).getJSONObject("sale");
                 JSONObject transaction_fee = obj_sale.getJSONObject("transaction_fee");
                 String fee = transaction_fee.getString("value");
-                System.out.println("DoGet> Fee: " + fee);   	    
-                
+                System.out.println("DoGet> Fee: " + fee);          
+ 
                 String notes = "";
-                utils.logFiatDepositResults(
-                    currency, 
-                    Double.valueOf(amount), 
-                    Double.valueOf(fee), 
-                    "PayPal", 
-                    emailfrom, 
-                    settings.test_user, 
-                    PayerID, 
-                    paymentId, 
-                    token, 
-                    createdPayment.toString(), 
-                    notes);
+//                utils.logFiatDepositResults(
+//                    currency, 
+//                    Double.valueOf(amount), 
+//                    Double.valueOf(fee), 
+//                    "PayPal", 
+//                    emailfrom, 
+//                    settings.test_user, 
+//                    PayerID, 
+//                    paymentId, 
+//                    token, 
+//                    createdPayment.toString(), 
+//                    notes);
                 
                 updateFiatBalance(
                         emailfrom, 
                         currency, 
                         Double.valueOf(amount) - Double.valueOf(fee));
             } catch (Exception ex) {
-                System.out.println("doGet> ExecutePayment error");	
+                System.out.println("doGet> ExecutePayment error");  
             }
         }
     }
